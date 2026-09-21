@@ -11,6 +11,7 @@ import { AREE_BY_ID } from '@shared/taxonomy';
 import { useRegistro } from '@/lib/dati';
 import { CardSoftware, DialogAssociaANodo, useEliminaAssociazione } from '@/components/associazioni';
 import SchedaSoftware from '@/components/SchedaSoftware';
+import RicercaPorto from '@/components/RicercaPorto';
 import type { Software } from '@shared/schema';
 
 const COLORE_CATEGORIA: Record<string, string> = {
@@ -29,7 +30,23 @@ export default function PaginaMappa() {
     { areaId: string; funzioneId?: string | null; attivitaId?: string | null } | null
   >(null);
   const [scheda, setScheda] = useState<Software | null>(null);
+  const [funzioniAperte, setFunzioniAperte] = useState<string[]>([]);
+  const [evidenziato, setEvidenziato] = useState<string | null>(null);
   const elimina = useEliminaAssociazione();
+
+  /** Porta la vista su un nodo preciso del porto: area, funzione, attività. */
+  function vaiA(nuovaArea: string, funzioneId?: string, attivitaId?: string) {
+    setAreaId(nuovaArea);
+    setFunzioniAperte(funzioneId ? [funzioneId] : []);
+    const bersaglio = attivitaId ?? funzioneId ?? null;
+    setEvidenziato(bersaglio);
+    if (bersaglio) {
+      window.setTimeout(() => {
+        document.getElementById(`nodo-${bersaglio}`)?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+      }, 260);
+      window.setTimeout(() => setEvidenziato(null), 3200);
+    }
+  }
 
   const conteggi: Record<string, number> = Object.fromEntries(
     Object.entries(registro.perArea).map(([k, v]) => [k, v.length])
@@ -56,6 +73,9 @@ export default function PaginaMappa() {
 
       <div className="grid xl:grid-cols-[minmax(0,1fr)_380px] gap-0">
         <div className="p-4 xl:p-5 min-w-0">
+          <div className="mb-3 max-w-xl">
+            <RicercaPorto onVaiArea={vaiA} onApriSoftware={setScheda} />
+          </div>
           <div className="rounded-lg border border-border overflow-x-auto scroll-sottile bg-[hsl(204_18%_9%)]">
             <div className="min-w-[760px] xl:min-w-0">
               <MappaPorto selezione={areaId} onSeleziona={setAreaId} conteggi={conteggi} />
@@ -183,11 +203,21 @@ export default function PaginaMappa() {
                 );
               })()}
 
-              <Accordion type="multiple" className="w-full">
+              <Accordion
+                type="multiple"
+                className="w-full"
+                value={funzioniAperte}
+                onValueChange={setFunzioniAperte}
+              >
                 {area.funzioni.map((f) => {
                   const swFunzione = registro.perFunzione[f.id] ?? [];
                   return (
-                    <AccordionItem key={f.id} value={f.id}>
+                    <AccordionItem
+                      key={f.id}
+                      value={f.id}
+                      id={`nodo-${f.id}`}
+                      className={evidenziato === f.id ? 'rounded-md ring-1 ring-primary/70' : undefined}
+                    >
                       <AccordionTrigger className="text-left hover:no-underline py-3">
                         <div className="flex items-start gap-2 min-w-0 pr-2">
                           <div className="min-w-0">
@@ -239,7 +269,12 @@ export default function PaginaMappa() {
                             return (
                               <div
                                 key={att.id}
-                                className="rounded-md border border-border/70 bg-background/40 p-2.5 space-y-2"
+                                id={`nodo-${att.id}`}
+                                className={`rounded-md border bg-background/40 p-2.5 space-y-2 transition-colors ${
+                                  evidenziato === att.id
+                                    ? 'border-primary ring-1 ring-primary/60'
+                                    : 'border-border/70'
+                                }`}
                               >
                                 <div className="flex items-start gap-2">
                                   <div className="mt-1 h-1.5 w-1.5 rounded-full bg-primary shrink-0" />

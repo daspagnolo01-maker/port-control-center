@@ -5,10 +5,10 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
-import { Database, Search, ExternalLink, Copy, AlertTriangle, Filter, X } from 'lucide-react';
+import { Database, Search, ExternalLink, Download, AlertTriangle, Filter, X } from 'lucide-react';
 import type { Software } from '@shared/schema';
 import { AREE, AREE_BY_ID, FUNZIONI_INDEX } from '@shared/taxonomy';
-import { etichettaFonte, nomeArea, nomeFunzione, urlNormalizzato, useRegistro } from '@/lib/dati';
+import { etichettaFonte, nomeArea, nomeAttivita, nomeFunzione, urlNormalizzato, useRegistro } from '@/lib/dati';
 import SchedaSoftware from '@/components/SchedaSoftware';
 import { EtichettaAssociazione } from '@/components/associazioni';
 import { useToast } from '@/hooks/use-toast';
@@ -105,24 +105,64 @@ export default function PaginaRegistro() {
 
   const esporta = () => {
     const righe = [
-      ['Nome', 'Categoria', 'Area', 'Funzione', 'URL', 'File Excel', 'Foglio', 'Stato'],
+      [
+        'Nome',
+        'Descrizione',
+        'Categoria',
+        'Associazioni (area > funzione > attività)',
+        'URL',
+        'Percorso locale',
+        'App desktop',
+        'Stato',
+        'Ruolo autorizzato',
+        'Note',
+        'File Excel',
+        'Foglio',
+        'Riga di origine',
+        'Possibile duplicato',
+      ],
       ...elenco.map((s) => {
-        const a = (registro.assPerSoftware[s.id] ?? [])[0];
+        const ass = (registro.assPerSoftware[s.id] ?? [])
+          .map((a) =>
+            [nomeArea(a.areaId), a.funzioneId ? nomeFunzione(a.funzioneId) : '', a.attivitaId ? nomeAttivita(a.attivitaId) : '']
+              .filter(Boolean)
+              .join(' > ')
+          )
+          .join(' | ');
         return [
           s.nome,
+          s.descrizione ?? '',
           s.categoria ?? '',
-          a ? nomeArea(a.areaId) : '',
-          a?.funzioneId ? nomeFunzione(a.funzioneId) : '',
-          s.url ?? s.percorsoLocale ?? '',
+          ass,
+          s.url ?? '',
+          s.percorsoLocale ?? '',
+          s.appDesktop ?? '',
+          s.stato ?? '',
+          s.ruolo ?? '',
+          s.note ?? '',
           etichettaFonte(registro.fonteById[s.fonteId]),
           s.foglio ?? '',
-          s.stato ?? '',
+          s.rigaOrigine ?? '',
+          idsDuplicati.has(s.id) ? 'sì' : '',
         ];
       }),
     ];
-    const csv = righe.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
-    navigator.clipboard?.writeText(csv);
-    toast({ title: 'Registro copiato', description: `${elenco.length} righe in formato CSV.` });
+    const csv = '\ufeff' + righe.map((r) => r.map((c) => `"${String(c).replace(/"/g, '""')}"`).join(';')).join('\n');
+    try {
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8' });
+      const href = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = href;
+      a.download = `registro-software-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.setTimeout(() => URL.revokeObjectURL(href), 4000);
+      toast({ title: 'Registro esportato', description: `${elenco.length} righe nel file CSV.` });
+    } catch {
+      navigator.clipboard?.writeText(csv);
+      toast({ title: 'Registro copiato', description: `${elenco.length} righe in formato CSV.` });
+    }
   };
 
   return (
@@ -133,8 +173,8 @@ export default function PaginaRegistro() {
         icona={Database}
       >
         <Button size="sm" variant="outline" onClick={esporta} disabled={!elenco.length} data-testid="button-esporta">
-          <Copy className="h-4 w-4 mr-1.5" />
-          Copia CSV
+          <Download className="h-4 w-4 mr-1.5" />
+          Esporta CSV
         </Button>
       </Intestazione>
 

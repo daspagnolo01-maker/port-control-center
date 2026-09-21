@@ -7,12 +7,18 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
-import { ExternalLink, Trash2, Plus, Save, Copy } from 'lucide-react';
+import { ExternalLink, Trash2, Plus, Save, Copy, Pencil, X, Check } from 'lucide-react';
 import type { Software } from '@shared/schema';
 import { etichettaFonte, urlNormalizzato, useRegistro } from '@/lib/dati';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
-import { EtichettaAssociazione, SelettoreNodo, useCreaAssociazione, useEliminaAssociazione } from './associazioni';
+import {
+  EtichettaAssociazione,
+  SelettoreNodo,
+  useAggiornaAssociazione,
+  useCreaAssociazione,
+  useEliminaAssociazione,
+} from './associazioni';
 
 export default function SchedaSoftware({
   software: s,
@@ -25,6 +31,9 @@ export default function SchedaSoftware({
   const { toast } = useToast();
   const crea = useCreaAssociazione();
   const elimina = useEliminaAssociazione();
+  const aggiornaAss = useAggiornaAssociazione();
+  const [inModifica, setInModifica] = useState<number | null>(null);
+  const [nodoModifica, setNodoModifica] = useState<{ areaId?: string; funzioneId?: string; attivitaId?: string }>({});
   const [nodo, setNodo] = useState<{ areaId?: string; funzioneId?: string; attivitaId?: string }>({});
   const [form, setForm] = useState({ nome: '', descrizione: '', url: '', categoria: '', stato: '', ruolo: '', note: '', percorsoLocale: '' });
 
@@ -41,6 +50,7 @@ export default function SchedaSoftware({
       percorsoLocale: s.percorsoLocale ?? '',
     });
     setNodo({});
+    setInModifica(null);
   }, [s?.id]);
 
   const salva = useMutation({
@@ -112,20 +122,77 @@ export default function SchedaSoftware({
               </p>
             )}
             <div className="space-y-2">
-              {associazioni.map((a) => (
-                <div key={a.id} className="flex items-center gap-2">
-                  <EtichettaAssociazione a={a} />
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    className="h-7 w-7 ml-auto"
-                    onClick={() => elimina.mutate(a.id)}
-                    data-testid={`button-elimina-ass-${a.id}`}
-                  >
-                    <Trash2 className="h-3.5 w-3.5" />
-                  </Button>
-                </div>
-              ))}
+              {associazioni.map((a) =>
+                inModifica === a.id ? (
+                  <div key={a.id} className="rounded-md border border-primary/50 p-3 space-y-2.5">
+                    <div className="etichetta text-muted-foreground">Modifica associazione</div>
+                    <SelettoreNodo valore={nodoModifica} onChange={setNodoModifica} />
+                    <div className="flex gap-2">
+                      <Button
+                        size="sm"
+                        className="flex-1"
+                        disabled={!nodoModifica.areaId || aggiornaAss.isPending}
+                        onClick={() =>
+                          aggiornaAss.mutate(
+                            {
+                              id: a.id,
+                              areaId: nodoModifica.areaId,
+                              funzioneId: nodoModifica.funzioneId ?? null,
+                              attivitaId: nodoModifica.attivitaId ?? null,
+                              origine: 'manuale',
+                            },
+                            {
+                              onSuccess: () => {
+                                setInModifica(null);
+                                toast({ title: 'Associazione modificata' });
+                              },
+                            }
+                          )
+                        }
+                        data-testid={`button-salva-ass-${a.id}`}
+                      >
+                        <Check className="h-3.5 w-3.5 mr-1.5" />
+                        Salva associazione
+                      </Button>
+                      <Button size="sm" variant="ghost" onClick={() => setInModifica(null)} data-testid="button-annulla-modifica-ass">
+                        <X className="h-3.5 w-3.5 mr-1.5" />
+                        Annulla
+                      </Button>
+                    </div>
+                  </div>
+                ) : (
+                  <div key={a.id} className="flex items-center gap-2">
+                    <EtichettaAssociazione a={a} />
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7 ml-auto"
+                      title="Modifica area, funzione o attività"
+                      onClick={() => {
+                        setInModifica(a.id);
+                        setNodoModifica({
+                          areaId: a.areaId,
+                          funzioneId: a.funzioneId ?? undefined,
+                          attivitaId: a.attivitaId ?? undefined,
+                        });
+                      }}
+                      data-testid={`button-modifica-ass-${a.id}`}
+                    >
+                      <Pencil className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      className="h-7 w-7"
+                      title="Rimuovi associazione"
+                      onClick={() => elimina.mutate(a.id)}
+                      data-testid={`button-elimina-ass-${a.id}`}
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                )
+              )}
             </div>
             <div className="rounded-md border border-border p-3 space-y-2.5">
               <div className="etichetta text-muted-foreground">Aggiungi associazione</div>
