@@ -62,7 +62,7 @@ export default function PaginaMappa() {
         icona={MapIcon}
       >
         <Badge variant="outline" className="num">
-          {registro.stats.nSoftware} software · {registro.stats.nFonti} file Excel
+          {registro.stats.nSoftware} software · {registro.stats.nFonti} fonti
         </Badge>
         <Link href="/gestione">
           <Button size="sm" variant="outline" data-testid="button-vai-gestione">

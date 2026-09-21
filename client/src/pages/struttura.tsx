@@ -383,7 +383,7 @@ export default function PaginaStruttura() {
           <DialogHeader>
             <DialogTitle className="font-display">Ripristinare la struttura predefinita</DialogTitle>
             <DialogDescription>
-              Aree, funzioni e attività tornano alla configurazione iniziale del porto. I file Excel
+              Aree, funzioni e attività tornano alla configurazione iniziale del porto. Le fonti software
               e i software importati non vengono toccati; le associazioni verso nodi non più
               esistenti vengono rimosse.
             </DialogDescription>

@@ -167,7 +167,7 @@ export default function RicercaPorto({
         >
           {risultati.length === 0 ? (
             <p className="p-3 text-sm text-muted-foreground">
-              Nessun risultato. I software compaiono qui dopo l'importazione di un file Excel.
+              Nessun risultato. I software compaiono qui dopo l'importazione di un elenco o l'inserimento di una voce.
             </p>
           ) : (
             risultati.map((r) => {
