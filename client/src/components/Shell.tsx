@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'wouter';
-import { Map, FileSpreadsheet, Database, Anchor } from 'lucide-react';
+import { Map, FileSpreadsheet, Database, Network, Anchor } from 'lucide-react';
 import { useRegistro } from '@/lib/dati';
 import { TOTALE_ATTIVITA, TOTALE_FUNZIONI, AREE } from '@shared/taxonomy';
 
@@ -27,6 +27,7 @@ const VOCI = [
   { href: '/', label: 'Mappa operativa', icona: Map },
   { href: '/gestione', label: 'Gestione software', icona: FileSpreadsheet },
   { href: '/registro', label: 'Registro software', icona: Database },
+  { href: '/albero', label: 'Albero associazioni', icona: Network },
 ];
 
 export default function Shell({ children }: { children: React.ReactNode }) {

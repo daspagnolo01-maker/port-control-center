@@ -8,6 +8,7 @@ import NotFound from '@/pages/not-found';
 import PaginaMappa from '@/pages/mappa';
 import PaginaGestione from '@/pages/gestione';
 import PaginaRegistro from '@/pages/registro';
+import PaginaAlbero from '@/pages/albero';
 
 function AppRouter() {
   return (
@@ -15,6 +16,7 @@ function AppRouter() {
       <Route path="/" component={PaginaMappa} />
       <Route path="/gestione" component={PaginaGestione} />
       <Route path="/registro" component={PaginaRegistro} />
+      <Route path="/albero" component={PaginaAlbero} />
       <Route component={NotFound} />
     </Switch>
   );
