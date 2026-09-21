@@ -48,7 +48,7 @@ Indicativi per un'installazione singola o di reparto: 2 core CPU, 2 GB di RAM li
 
 ### 2.3 Rete
 
-L'applicazione ascolta per impostazione predefinita sulla porta 5000. Per l'uso da parte di più postazioni è sufficiente che la porta sia raggiungibile nella rete locale.
+L'applicazione ascolta per impostazione predefinita sulla porta 5000 e solo sull'indirizzo locale `127.0.0.1`: è quindi raggiungibile unicamente dal computer su cui è in esecuzione e non viene esposta alla rete. Per consentire l'accesso da altre postazioni della rete locale occorre impostare esplicitamente la variabile d'ambiente `HOST=0.0.0.0` e verificare che la porta sia raggiungibile.
 
 ---
 
@@ -68,6 +68,9 @@ port-control-center/
     docx.ts         lettore di file .docx senza dipendenze esterne
   shared/           modello dati, tassonomia iniziale, geometria della pianta
   script/build.ts   procedura di compilazione
+  avvia-windows.cmd     avviatore per Windows (installa, compila e apre il browser)
+  avvia-mac-linux.sh    avviatore per macOS e Linux
+  .devcontainer/        configurazione per l'uso in GitHub Codespaces
   data.db           database SQLite (creato al primo avvio)
 ```
 
@@ -113,6 +116,14 @@ port-control-center/
 
    Su Windows PowerShell: `$env:PORT=8080; npm start`.
 
+4. L'applicazione resta in ascolto solo sul computer locale. Per renderla raggiungibile dalle altre postazioni della rete locale:
+
+   ```bash
+   HOST=0.0.0.0 npm start
+   ```
+
+   Su Windows PowerShell: `$env:HOST="0.0.0.0"; npm start`.
+
 ### 3.4 Comandi disponibili
 
 | Comando | Effetto |
@@ -154,6 +165,48 @@ Tutti i dati risiedono nel file `data.db` nella cartella di lavoro da cui è sta
 - Azzeramento completo: arrestare l'applicazione, rinominare o cancellare `data.db`, riavviare. La struttura del porto viene ricreata dalla tassonomia iniziale e il registro software torna vuoto.
 
 Si consiglia un backup pianificato giornaliero del file di database.
+
+### 3.7 Avvio rapido con gli avviatori inclusi
+
+Nella cartella del progetto sono presenti due file che eseguono in sequenza installazione delle dipendenze, compilazione e avvio, senza dover digitare comandi:
+
+| Sistema | File | Uso |
+| --- | --- | --- |
+| Windows | `avvia-windows.cmd` | Doppio clic. Al primo avvio installa e compila, poi apre il browser su `http://localhost:5000` |
+| macOS, Linux | `avvia-mac-linux.sh` | Eseguire `./avvia-mac-linux.sh` da terminale |
+
+Gli avviatori usano Node.js presente nel sistema; se nella cartella del progetto esiste una sottocartella `nodejs` con una copia portatile di Node.js, viene usata quella (vedere il paragrafo seguente).
+
+### 3.8 Installazione senza diritti di amministratore
+
+Non è necessaria alcuna installazione di sistema: Node.js è distribuito anche come archivio compresso che funziona da qualunque cartella dell'utente, senza password di amministratore e senza modificare il registro di sistema.
+
+1. Aprire la pagina dei download di Node.js e scegliere, tra tutte le opzioni, l'archivio **ZIP** della versione 20 LTS per Windows a 64 bit (per macOS e Linux l'archivio `.tar.gz`).
+2. Estrarre l'archivio dentro la cartella del progetto e rinominare la cartella estratta in `nodejs`, in modo che esista il file `nodejs\node.exe` (su macOS e Linux `nodejs/bin/node`).
+3. Fare doppio clic su `avvia-windows.cmd` (oppure eseguire `./avvia-mac-linux.sh`).
+
+In alternativa, per rendere Node.js disponibile in ogni terminale dell'utente, aggiungere la cartella estratta alla variabile d'ambiente `Path` dell'utente (Windows: "Modifica le variabili di ambiente relative all'account"). L'operazione riguarda il solo profilo utente e non richiede privilegi amministrativi.
+
+Note utili:
+
+- Le dipendenze vengono installate nella cartella del progetto (`node_modules`): nessun file viene scritto in aree protette del sistema.
+- Il componente del database viene scaricato già compilato per Windows, macOS e Linux a 64 bit: non servono strumenti di compilazione né altre installazioni.
+- Se l'organizzazione impedisce l'esecuzione di file `.cmd` o l'accesso al registro pubblico dei pacchetti, si può usare la modalità descritta nel paragrafo successivo, che non richiede nulla di installato sul computer.
+
+### 3.9 Uso tramite un repository GitHub privato
+
+Il codice può essere conservato in un repository GitHub **privato**: in questo modo è visibile solo all'account proprietario e a chi viene invitato espressamente, e l'applicazione non risulta pubblicata né raggiungibile da altri.
+
+Due modalità d'uso:
+
+1. **Copia locale del repository.** Scaricare il codice dal repository privato (pulsante di download dell'archivio ZIP oppure `git clone`) e avviarlo come descritto ai paragrafi 3.7 e 3.8. Tutti i dati restano nel file `data.db` sul proprio computer.
+2. **Esecuzione in GitHub Codespaces.** Dal repository privato si apre un ambiente di sviluppo nel browser, già configurato dal file `.devcontainer/devcontainer.json` incluso nel progetto: Node.js 20 è presente, le dipendenze vengono installate automaticamente e la porta 5000 viene inoltrata con visibilità **privata**, quindi l'indirizzo generato funziona solo per l'account che ha creato l'ambiente. In questo caso non occorre installare nulla sul computer: basta il browser.
+
+Avvertenze sull'uso di Codespaces:
+
+- Il file `data.db` è escluso dal repository (`.gitignore`), perciò i dati inseriti in un ambiente Codespaces vivono in quell'ambiente: conviene scaricare periodicamente una copia del file, oppure usare Codespaces per le prove e la copia locale per l'archivio definitivo.
+- Gli ambienti Codespaces vengono sospesi dopo un periodo di inattività e consumano il monte ore incluso nel piano dell'account.
+- Un ambiente creato da un repository privato resta privato: nessun indirizzo pubblico viene generato se non si cambia manualmente la visibilità della porta.
 
 ---
 

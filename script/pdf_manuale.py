@@ -180,8 +180,8 @@ def make_table(rows):
         m = 0
         for txt in [head[col]] + [r[col] for r in body]:
             for w in re.sub(r'[`*]', '', txt).split():
-                m = max(m, pdfmetrics.stringWidth(w, MONO, 8.3))
-        return m + 13
+                m = max(m, pdfmetrics.stringWidth(w, MONO, 9.6))
+        return m + 18
     mins = [min(parola_max(c), CW * 0.34) for c in range(ncol)]
     weights = []
     for c in range(ncol):
