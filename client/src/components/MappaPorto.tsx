@@ -1,5 +1,7 @@
 import { useMemo, useState } from 'react';
-import { AREE, type Area } from '@shared/taxonomy';
+import { CATEGORIE_AREA } from '@shared/schema';
+import { useStruttura, type StrutturaArea } from '@/lib/struttura';
+import { ALTEZZA_MINIMA_PIANTA, LARGHEZZA_PIANTA } from '@shared/geometria';
 
 export type Zona = {
   areaId: string;
@@ -8,30 +10,43 @@ export type Zona = {
   w: number;
   h: number;
   righe: string[];
-  decoro?: 'container' | 'silos' | 'roro' | 'passeggeri' | 'dogana' | 'scanner' | 'varco' | 'ferrovia' | 'magazzino' | 'torre' | 'security' | 'sanita' | 'ambiente' | 'truck' | 'mare' | 'banchina' | 'nautici';
+  decoro?: string | null;
 };
 
-/** Pianta schematica del porto: ogni zona è una porta d'accesso alle funzioni operative. */
-export const ZONE: Zona[] = [
-  { areaId: 'avamporto', x: 40, y: 24, w: 1520, h: 104, righe: ['Avamporto e imboccatura'], decoro: 'mare' },
-  { areaId: 'banchina', x: 40, y: 418, w: 1520, h: 52, righe: ['Banchine e accosti'], decoro: 'banchina' },
-  { areaId: 'terminal-container', x: 40, y: 486, w: 520, h: 272, righe: ['Terminal', 'Container'], decoro: 'container' },
-  { areaId: 'terminal-rinfuse', x: 580, y: 486, w: 280, h: 152, righe: ['Terminal Rinfuse'], decoro: 'silos' },
-  { areaId: 'terminal-roro', x: 880, y: 486, w: 280, h: 152, righe: ['Terminal Ro-Ro', 'e Traghetti'], decoro: 'roro' },
-  { areaId: 'terminal-passeggeri', x: 1180, y: 486, w: 380, h: 152, righe: ['Terminal Passeggeri', 'e Crociere'], decoro: 'passeggeri' },
-  { areaId: 'deposito', x: 580, y: 658, w: 280, h: 142, righe: ['Magazzini', 'e Depositi'], decoro: 'magazzino' },
-  { areaId: 'scanner', x: 880, y: 658, w: 280, h: 142, righe: ['Scanner e controlli', 'non intrusivi'], decoro: 'scanner' },
-  { areaId: 'area-doganale', x: 1180, y: 658, w: 220, h: 142, righe: ['Area', 'Doganale'], decoro: 'dogana' },
-  { areaId: 'torre-controllo', x: 1410, y: 658, w: 150, h: 142, righe: ['Torre di', 'Controllo'], decoro: 'torre' },
-  { areaId: 'ferrovia', x: 40, y: 778, w: 520, h: 100, righe: ['Area Ferroviaria'], decoro: 'ferrovia' },
-  { areaId: 'truck-parking', x: 40, y: 898, w: 560, h: 92, righe: ['Aree autotrasporto e servizi'], decoro: 'truck' },
-  { areaId: 'varchi', x: 620, y: 800, w: 240, h: 190, righe: ['Varchi', 'e Gate'], decoro: 'varco' },
-  { areaId: 'security', x: 880, y: 800, w: 280, h: 190, righe: ['Security', 'e Sorveglianza'], decoro: 'security' },
-  { areaId: 'sanita', x: 1180, y: 820, w: 210, h: 170, righe: ['Controlli sanitari', 'e fitosanitari'], decoro: 'sanita' },
-  { areaId: 'ambiente', x: 1410, y: 820, w: 150, h: 170, righe: ['Ambiente', 'Rifiuti', 'Bunker'], decoro: 'ambiente' },
-];
+/** Spezza un nome lungo in più righe, per le aree aggiunte dall'utente. */
+function righeDaNome(nome: string, larghezza: number): string[] {
+  const max = Math.max(10, Math.floor(larghezza / 9));
+  const parole = nome.split(/\s+/);
+  const out: string[] = [];
+  let riga = '';
+  for (const parola of parole) {
+    if (riga && (riga + ' ' + parola).length > max) {
+      out.push(riga);
+      riga = parola;
+    } else {
+      riga = riga ? riga + ' ' + parola : parola;
+    }
+  }
+  if (riga) out.push(riga);
+  return out.slice(0, 3);
+}
 
-const COLORE_CATEGORIA: Record<Area['categoria'], string> = {
+/** La pianta è generata dalla struttura salvata: nessuna zona è fissata nel codice. */
+export function zoneDaStruttura(aree: StrutturaArea[]): Zona[] {
+  return aree
+    .filter((a) => !a.speciale && a.w > 0 && a.h > 0)
+    .map((a) => ({
+      areaId: a.id,
+      x: a.x,
+      y: a.y,
+      w: a.w,
+      h: a.h,
+      righe: a.righe?.length ? a.righe : righeDaNome(a.nome, a.w),
+      decoro: a.decoro,
+    }));
+}
+
+const COLORE_CATEGORIA: Record<string, string> = {
   mare: 'hsl(190 55% 45%)',
   banchina: 'hsl(202 14% 58%)',
   terminal: 'hsl(185 74% 46%)',
@@ -40,14 +55,7 @@ const COLORE_CATEGORIA: Record<Area['categoria'], string> = {
   servizi: 'hsl(150 45% 52%)',
 };
 
-export const ETICHETTE_CATEGORIA: { id: Area['categoria']; nome: string }[] = [
-  { id: 'mare', nome: 'Specchio acqueo' },
-  { id: 'banchina', nome: 'Banchina e nave' },
-  { id: 'terminal', nome: 'Terminal operativi' },
-  { id: 'controllo', nome: 'Controllo e sicurezza' },
-  { id: 'intermodale', nome: 'Intermodale e strada' },
-  { id: 'servizi', nome: 'Servizi e ambiente' },
-];
+export const ETICHETTE_CATEGORIA = CATEGORIE_AREA;
 
 type Props = {
   selezione?: string | null;
@@ -75,13 +83,20 @@ const NAVI: Nave[] = [
 
 export default function MappaPorto({ selezione, onSeleziona, conteggi }: Props) {
   const [hover, setHover] = useState<string | null>(null);
-  const areeById = useMemo(() => Object.fromEntries(AREE.map((a) => [a.id, a])), []);
+  const { aree, areeById } = useStruttura();
+  const zone = useMemo(() => zoneDaStruttura(aree), [aree]);
+  const altezza = useMemo(
+    () => Math.max(ALTEZZA_MINIMA_PIANTA, ...zone.map((z) => z.y + z.h + 24)),
+    [zone]
+  );
+  const mostraNavi = !!areeById['nave'];
+  const mostraNautici = !!areeById['servizi-nautici'];
 
   const attivo = (id: string) => selezione === id || hover === id;
 
   return (
     <svg
-      viewBox="0 0 1600 1010"
+      viewBox={`0 0 ${LARGHEZZA_PIANTA} ${altezza}`}
       className="w-full h-auto select-none"
       role="img"
       aria-label="Pianta interattiva del porto commerciale"
@@ -115,7 +130,7 @@ export default function MappaPorto({ selezione, onSeleziona, conteggi }: Props) 
       </defs>
 
       {/* fondo: terra */}
-      <rect x="0" y="0" width="1600" height="1010" fill="url(#asfalto)" />
+      <rect x="0" y="0" width={LARGHEZZA_PIANTA} height={altezza} fill="url(#asfalto)" />
 
       {/* specchio acqueo */}
       <rect x="0" y="0" width="1600" height="440" fill="url(#gradAcqua)" />
@@ -144,6 +159,7 @@ export default function MappaPorto({ selezione, onSeleziona, conteggi }: Props) 
       />
 
       {/* mezzi tecnico-nautici: rimorchiatore e pilotina (cliccabili) */}
+      {mostraNautici && (
       <g
         className="zona"
         tabIndex={0}
@@ -176,9 +192,10 @@ export default function MappaPorto({ selezione, onSeleziona, conteggi }: Props) 
           Servizi tecnico-nautici
         </text>
       </g>
+      )}
 
       {/* navi ormeggiate */}
-      {NAVI.map((n) => {
+      {mostraNavi && NAVI.map((n) => {
         const on = attivo('nave');
         return (
           <g
@@ -301,11 +318,11 @@ export default function MappaPorto({ selezione, onSeleziona, conteggi }: Props) 
       </g>
 
       {/* zone cliccabili */}
-      {ZONE.map((z) => {
+      {zone.map((z) => {
         const area = areeById[z.areaId];
         if (!area) return null;
         const on = attivo(z.areaId);
-        const colore = COLORE_CATEGORIA[area.categoria];
+        const colore = COLORE_CATEGORIA[area.categoria] ?? 'hsl(185 74% 46%)';
         const n = conteggi[z.areaId] ?? 0;
         return (
           <g

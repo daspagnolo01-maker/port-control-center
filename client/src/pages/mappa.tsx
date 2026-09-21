@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Link2, Map as MapIcon, FileSpreadsheet, ChevronRight, Ship } from 'lucide-react';
-import { AREE_BY_ID } from '@shared/taxonomy';
+import { useStruttura } from '@/lib/struttura';
 import { useRegistro } from '@/lib/dati';
 import { CardSoftware, DialogAssociaANodo, useEliminaAssociazione } from '@/components/associazioni';
 import SchedaSoftware from '@/components/SchedaSoftware';
@@ -25,6 +25,7 @@ const COLORE_CATEGORIA: Record<string, string> = {
 
 export default function PaginaMappa() {
   const registro = useRegistro();
+  const { areeById } = useStruttura();
   const [areaId, setAreaId] = useState<string | null>(null);
   const [dialogNodo, setDialogNodo] = useState<
     { areaId: string; funzioneId?: string | null; attivitaId?: string | null } | null
@@ -51,7 +52,7 @@ export default function PaginaMappa() {
   const conteggi: Record<string, number> = Object.fromEntries(
     Object.entries(registro.perArea).map(([k, v]) => [k, v.length])
   );
-  const area = areaId ? AREE_BY_ID[areaId] : undefined;
+  const area = areaId ? areeById[areaId] : undefined;
 
   return (
     <Shell>

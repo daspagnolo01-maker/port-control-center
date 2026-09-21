@@ -1,10 +1,98 @@
 import type { Express } from 'express';
 import type { Server } from 'node:http';
 import { storage } from './storage';
-import { importSchema, insertAssociazioneSchema } from '@shared/schema';
+import {
+  importSchema,
+  insertAssociazioneSchema,
+  areaInputSchema,
+  funzioneInputSchema,
+  attivitaInputSchema,
+} from '@shared/schema';
 import { z } from 'zod';
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
+  // ---- Struttura del porto: aree fisiche, funzioni, attività ----
+  app.get('/api/struttura', (_req, res) => {
+    res.json(storage.struttura());
+  });
+
+  app.post('/api/aree', (req, res) => {
+    const parsed = areaInputSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errore: parsed.error.message });
+    res.json(storage.creaArea(parsed.data));
+  });
+
+  app.patch('/api/aree/:id', (req, res) => {
+    const out = storage.aggiornaArea(req.params.id, req.body ?? {});
+    if (!out) return res.status(404).json({ errore: 'Area non trovata' });
+    res.json(out);
+  });
+
+  app.get('/api/aree/:id/impatto', (req, res) => {
+    res.json({ associazioni: storage.impattoEliminazione('area', req.params.id) });
+  });
+
+  app.delete('/api/aree/:id', (req, res) => {
+    res.json({ ok: true, associazioniRimosse: storage.eliminaArea(req.params.id) });
+  });
+
+  app.post('/api/funzioni', (req, res) => {
+    const parsed = funzioneInputSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errore: parsed.error.message });
+    res.json(storage.creaFunzione(parsed.data));
+  });
+
+  app.patch('/api/funzioni/:id', (req, res) => {
+    const out = storage.aggiornaFunzione(req.params.id, req.body ?? {});
+    if (!out) return res.status(404).json({ errore: 'Funzione non trovata' });
+    res.json(out);
+  });
+
+  app.get('/api/funzioni/:id/impatto', (req, res) => {
+    res.json({ associazioni: storage.impattoEliminazione('funzione', req.params.id) });
+  });
+
+  app.delete('/api/funzioni/:id', (req, res) => {
+    res.json({ ok: true, associazioniSpostate: storage.eliminaFunzione(req.params.id) });
+  });
+
+  app.post('/api/attivita', (req, res) => {
+    const parsed = attivitaInputSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errore: parsed.error.message });
+    res.json(storage.creaAttivita(parsed.data));
+  });
+
+  app.patch('/api/attivita/:id', (req, res) => {
+    const out = storage.aggiornaAttivita(req.params.id, req.body ?? {});
+    if (!out) return res.status(404).json({ errore: 'Attività non trovata' });
+    res.json(out);
+  });
+
+  app.get('/api/attivita/:id/impatto', (req, res) => {
+    res.json({ associazioni: storage.impattoEliminazione('attivita', req.params.id) });
+  });
+
+  app.delete('/api/attivita/:id', (req, res) => {
+    res.json({ ok: true, associazioniSpostate: storage.eliminaAttivita(req.params.id) });
+  });
+
+  app.post('/api/struttura/sposta', (req, res) => {
+    const schema = z.object({
+      tipo: z.enum(['area', 'funzione', 'attivita']),
+      id: z.string().min(1),
+      direzione: z.union([z.literal(-1), z.literal(1)]),
+    });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errore: parsed.error.message });
+    storage.spostaNodo(parsed.data.tipo, parsed.data.id, parsed.data.direzione);
+    res.json({ ok: true });
+  });
+
+  app.post('/api/struttura/ripristina', (_req, res) => {
+    storage.ripristinaStruttura();
+    res.json({ ok: true });
+  });
+
   // ---- Fonti Excel ----
   app.get('/api/fonti', (_req, res) => {
     res.json(storage.listaFonti());

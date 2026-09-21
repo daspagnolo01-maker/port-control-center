@@ -7,7 +7,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Database, Search, ExternalLink, Download, AlertTriangle, Filter, X } from 'lucide-react';
 import type { Software } from '@shared/schema';
-import { AREE, AREE_BY_ID, FUNZIONI_INDEX } from '@shared/taxonomy';
+import { useStruttura } from '@/lib/struttura';
 import { etichettaFonte, nomeArea, nomeAttivita, nomeFunzione, urlNormalizzato, useRegistro } from '@/lib/dati';
 import SchedaSoftware from '@/components/SchedaSoftware';
 import { EtichettaAssociazione } from '@/components/associazioni';
@@ -17,6 +17,7 @@ const TUTTI = '__tutti__';
 
 export default function PaginaRegistro() {
   const registro = useRegistro();
+  const { aree, areeById, funzioniIndex } = useStruttura();
   const { toast } = useToast();
   const [scheda, setScheda] = useState<Software | null>(null);
   const [cerca, setCerca] = useState('');
@@ -43,9 +44,10 @@ export default function PaginaRegistro() {
     () => Array.from(new Set(registro.software.map((s) => s.stato).filter(Boolean))) as string[],
     [registro.software]
   );
-  const funzioniDisponibili = fArea !== TUTTI ? AREE_BY_ID[fArea]?.funzioni ?? [] : AREE.flatMap((a) => a.funzioni);
+  const funzioniDisponibili =
+    fArea !== TUTTI ? areeById[fArea]?.funzioni ?? [] : aree.flatMap((a) => a.funzioni);
   const attivitaDisponibili =
-    fFunzione !== TUTTI ? FUNZIONI_INDEX[fFunzione]?.funzione.attivita ?? [] : [];
+    fFunzione !== TUTTI ? funzioniIndex[fFunzione]?.funzione.attivita ?? [] : [];
 
   const idsDuplicati = useMemo(
     () => new Set(registro.gruppiDuplicati.flatMap((g) => g.record.map((r) => r.id))),
@@ -256,7 +258,7 @@ export default function PaginaRegistro() {
                     setFAttivita(TUTTI);
                   }}
                   placeholder="Area"
-                  opzioni={AREE.map((a) => ({ value: a.id, label: a.nome }))}
+                  opzioni={aree.map((a) => ({ value: a.id, label: a.nome }))}
                   testId="filtro-area"
                 />
                 <FiltroSelect
@@ -464,7 +466,7 @@ export default function PaginaRegistro() {
 
           <TabsContent value="copertura" className="mt-4">
             <div className="grid md:grid-cols-2 xl:grid-cols-3 gap-2.5">
-              {AREE.map((a) => {
+              {aree.map((a) => {
                 const n = (registro.perArea[a.id] ?? []).length;
                 const funzioniCoperte = a.funzioni.filter((f) => (registro.perFunzione[f.id] ?? []).length).length;
                 return (

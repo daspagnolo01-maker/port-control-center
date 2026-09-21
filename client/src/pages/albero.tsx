@@ -27,7 +27,8 @@ import {
   X,
   Unplug,
 } from 'lucide-react';
-import { AREE, normalizza } from '@shared/taxonomy';
+import { normalizza } from '@shared/taxonomy';
+import { useStruttura } from '@/lib/struttura';
 import type { Associazione, Software } from '@shared/schema';
 import { etichettaFonte, urlNormalizzato, useRegistro } from '@/lib/dati';
 import {
@@ -61,6 +62,7 @@ type NodoArea = {
 
 export default function PaginaAlbero() {
   const registro = useRegistro();
+  const { aree } = useStruttura();
   const elimina = useEliminaAssociazione();
   const [aperti, setAperti] = useState<Record<string, boolean>>({});
   const [q, setQ] = useState('');
@@ -89,7 +91,7 @@ export default function PaginaAlbero() {
         .map((a) => ({ software: swById[a.softwareId], associazione: a }))
         .sort((x, y) => x.software.nome.localeCompare(y.software.nome, 'it'));
 
-    return AREE.map((area) => {
+    return aree.map((area) => {
       const funzioni: NodoFunzione[] = area.funzioni.map((f) => {
         const attivita: NodoAttivita[] = f.attivita.map((att) => ({
           id: att.id,
@@ -117,7 +119,7 @@ export default function PaginaAlbero() {
         totale: swArea.length + funzioni.reduce((t, f) => t + f.totale, 0),
       };
     });
-  }, [registro.software, registro.associazioni, fonteFiltro]);
+  }, [aree, registro.software, registro.associazioni, fonteFiltro]);
 
   const combaciaFoglia = (f: Foglia) =>
     !termine ||

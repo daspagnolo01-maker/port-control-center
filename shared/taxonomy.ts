@@ -27,7 +27,7 @@ export type Area = {
 
 const A = (id: string, nome: string, descrizione?: string): Attivita => ({ id, nome, descrizione });
 
-export const AREE: Area[] = [
+export const AREE_PREDEFINITE: Area[] = [
   {
     id: 'avamporto',
     nome: 'Avamporto e Imboccatura',
@@ -597,6 +597,9 @@ export const AREE: Area[] = [
 export type NodoFunzione = { area: Area; funzione: Funzione };
 export type NodoAttivita = { area: Area; funzione: Funzione; attivita: Attivita };
 
+/** Alias di compatibilità: struttura di partenza, prima di qualsiasi personalizzazione. */
+export const AREE = AREE_PREDEFINITE;
+
 export const AREE_BY_ID: Record<string, Area> = Object.fromEntries(AREE.map((a) => [a.id, a]));
 
 export const FUNZIONI_INDEX: Record<string, NodoFunzione> = {};
@@ -626,11 +629,11 @@ export function normalizza(testo: string): string {
 }
 
 /** Tenta di riconoscere un'area portuale da un testo libero (colonna "Area" dell'Excel). */
-export function suggerisciArea(testo?: string | null): Area | undefined {
+export function suggerisciArea(aree: Area[], testo?: string | null): Area | undefined {
   const t = normalizza(testo || '');
   if (!t) return undefined;
   let best: { area: Area; score: number } | undefined;
-  for (const area of AREE) {
+  for (const area of aree) {
     const candidati = [area.nome, area.codice, area.id.replace(/-/g, ' ')];
     for (const c of candidati) {
       const n = normalizza(c);
@@ -651,10 +654,15 @@ export function suggerisciArea(testo?: string | null): Area | undefined {
 }
 
 /** Tenta di riconoscere una funzione portuale da un testo libero, eventualmente entro un'area. */
-export function suggerisciFunzione(testo?: string | null, areaId?: string | null): Funzione | undefined {
+export function suggerisciFunzione(
+  aree: Area[],
+  testo?: string | null,
+  areaId?: string | null
+): Funzione | undefined {
   const t = normalizza(testo || '');
   if (!t) return undefined;
-  const pool = areaId && AREE_BY_ID[areaId] ? AREE_BY_ID[areaId].funzioni : AREE.flatMap((a) => a.funzioni);
+  const areaScelta = aree.find((a) => a.id === areaId);
+  const pool = areaScelta ? areaScelta.funzioni : aree.flatMap((a) => a.funzioni);
   let best: { f: Funzione; score: number } | undefined;
   for (const f of pool) {
     const n = normalizza(f.nome);
@@ -672,12 +680,18 @@ export function suggerisciFunzione(testo?: string | null, areaId?: string | null
 }
 
 /** Tenta di riconoscere un'attività da un testo libero, eventualmente entro una funzione. */
-export function suggerisciAttivita(testo?: string | null, funzioneId?: string | null): Attivita | undefined {
+export function suggerisciAttivita(
+  aree: Area[],
+  testo?: string | null,
+  funzioneId?: string | null
+): Attivita | undefined {
   const t = normalizza(testo || '');
   if (!t) return undefined;
-  const pool = funzioneId && FUNZIONI_INDEX[funzioneId]
-    ? FUNZIONI_INDEX[funzioneId].funzione.attivita
-    : AREE.flatMap((a) => a.funzioni.flatMap((f) => f.attivita));
+  const tutteFunzioni = aree.flatMap((a) => a.funzioni);
+  const funzioneScelta = tutteFunzioni.find((f) => f.id === funzioneId);
+  const pool = funzioneScelta
+    ? funzioneScelta.attivita
+    : tutteFunzioni.flatMap((f) => f.attivita);
   let best: { a: Attivita; score: number } | undefined;
   for (const a of pool) {
     const n = normalizza(a.nome);

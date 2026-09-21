@@ -1,7 +1,7 @@
 import { Link, useLocation } from 'wouter';
-import { Map, FileSpreadsheet, Database, Network, Anchor } from 'lucide-react';
+import { Map, FileSpreadsheet, Database, Network, Anchor, SlidersHorizontal } from 'lucide-react';
 import { useRegistro } from '@/lib/dati';
-import { TOTALE_ATTIVITA, TOTALE_FUNZIONI, AREE } from '@shared/taxonomy';
+import { useStruttura } from '@/lib/struttura';
 
 export function Logo({ className = 'h-8 w-8' }: { className?: string }) {
   return (
@@ -28,11 +28,13 @@ const VOCI = [
   { href: '/gestione', label: 'Gestione software', icona: FileSpreadsheet },
   { href: '/registro', label: 'Registro software', icona: Database },
   { href: '/albero', label: 'Albero associazioni', icona: Network },
+  { href: '/struttura', label: 'Struttura del porto', icona: SlidersHorizontal },
 ];
 
 export default function Shell({ children }: { children: React.ReactNode }) {
   const [percorso] = useLocation();
   const { stats } = useRegistro();
+  const struttura = useStruttura();
 
   return (
     <div className="min-h-screen bg-background text-foreground flex flex-col lg:flex-row">
@@ -70,9 +72,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </nav>
 
         <div className="mt-auto hidden lg:block p-4 border-t border-sidebar-border space-y-2.5">
-          <Riga etichetta="Aree portuali" valore={AREE.length} />
-          <Riga etichetta="Funzioni" valore={TOTALE_FUNZIONI} />
-          <Riga etichetta="Attività" valore={TOTALE_ATTIVITA} />
+          <Riga etichetta="Aree portuali" valore={struttura.totaleAree} />
+          <Riga etichetta="Funzioni" valore={struttura.totaleFunzioni} />
+          <Riga etichetta="Attività" valore={struttura.totaleAttivita} />
           <div className="h-px bg-sidebar-border my-1" />
           <Riga etichetta="File Excel" valore={stats.nFonti} />
           <Riga etichetta="Software" valore={stats.nSoftware} accento />

@@ -121,3 +121,107 @@ export const importSchema = z.object({
 
 export type ImportPayload = z.infer<typeof importSchema>;
 export type RigaImport = z.infer<typeof rigaImportSchema>;
+
+// ---- Struttura del porto: area fisica -> funzione -> attività ----
+// La catena è sempre questa, ma i suoi nodi sono configurabili dall'utente
+// e vengono conservati nel database (non sono fissati nel codice).
+
+export const aree = sqliteTable('aree', {
+  id: text('id').primaryKey(),
+  nome: text('nome').notNull(),
+  codice: text('codice').notNull().default(''),
+  categoria: text('categoria').notNull().default('terminal'),
+  descrizione: text('descrizione').notNull().default(''),
+  // geometria della zona sulla pianta
+  x: integer('x').notNull().default(0),
+  y: integer('y').notNull().default(0),
+  w: integer('w').notNull().default(240),
+  h: integer('h').notNull().default(120),
+  decoro: text('decoro'),
+  righe: text('righe').notNull().default('[]'), // JSON: string[] delle righe di etichetta
+  speciale: integer('speciale').notNull().default(0), // 1 = disegno dedicato (navi, servizi nautici)
+  ordine: integer('ordine').notNull().default(0),
+});
+
+export const funzioni = sqliteTable('funzioni', {
+  id: text('id').primaryKey(),
+  areaId: text('area_id').notNull(),
+  nome: text('nome').notNull(),
+  descrizione: text('descrizione'),
+  ordine: integer('ordine').notNull().default(0),
+});
+
+export const attivita = sqliteTable('attivita', {
+  id: text('id').primaryKey(),
+  funzioneId: text('funzione_id').notNull(),
+  nome: text('nome').notNull(),
+  descrizione: text('descrizione'),
+  ordine: integer('ordine').notNull().default(0),
+});
+
+export type AreaRecord = typeof aree.$inferSelect;
+export type FunzioneRecord = typeof funzioni.$inferSelect;
+export type AttivitaRecord = typeof attivita.$inferSelect;
+
+export const CATEGORIE_AREA = [
+  { id: 'mare', nome: 'Specchio acqueo' },
+  { id: 'banchina', nome: 'Banchina e nave' },
+  { id: 'terminal', nome: 'Terminal operativi' },
+  { id: 'controllo', nome: 'Controllo e sicurezza' },
+  { id: 'intermodale', nome: 'Intermodale e strada' },
+  { id: 'servizi', nome: 'Servizi e ambiente' },
+] as const;
+
+export const areaInputSchema = z.object({
+  nome: z.string().min(1),
+  codice: z.string().optional(),
+  categoria: z.string().optional(),
+  descrizione: z.string().optional(),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  w: z.number().optional(),
+  h: z.number().optional(),
+  righe: z.array(z.string()).optional(),
+  ordine: z.number().optional(),
+});
+
+export const funzioneInputSchema = z.object({
+  areaId: z.string().min(1),
+  nome: z.string().min(1),
+  descrizione: z.string().optional().nullable(),
+  ordine: z.number().optional(),
+});
+
+export const attivitaInputSchema = z.object({
+  funzioneId: z.string().min(1),
+  nome: z.string().min(1),
+  descrizione: z.string().optional().nullable(),
+  ordine: z.number().optional(),
+});
+
+/** Struttura completa restituita al client. */
+export type StrutturaAttivita = { id: string; nome: string; descrizione?: string | null; ordine: number };
+export type StrutturaFunzione = {
+  id: string;
+  areaId: string;
+  nome: string;
+  descrizione?: string | null;
+  ordine: number;
+  attivita: StrutturaAttivita[];
+};
+export type StrutturaArea = {
+  id: string;
+  nome: string;
+  codice: string;
+  categoria: string;
+  descrizione: string;
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+  decoro?: string | null;
+  righe: string[];
+  speciale: boolean;
+  ordine: number;
+  funzioni: StrutturaFunzione[];
+};

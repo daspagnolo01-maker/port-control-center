@@ -9,6 +9,7 @@ import PaginaMappa from '@/pages/mappa';
 import PaginaGestione from '@/pages/gestione';
 import PaginaRegistro from '@/pages/registro';
 import PaginaAlbero from '@/pages/albero';
+import PaginaStruttura from '@/pages/struttura';
 
 function AppRouter() {
   return (
@@ -17,6 +18,7 @@ function AppRouter() {
       <Route path="/gestione" component={PaginaGestione} />
       <Route path="/registro" component={PaginaRegistro} />
       <Route path="/albero" component={PaginaAlbero} />
+      <Route path="/struttura" component={PaginaStruttura} />
       <Route component={NotFound} />
     </Switch>
   );

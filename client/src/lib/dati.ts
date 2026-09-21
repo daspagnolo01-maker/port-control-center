@@ -1,7 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import type { Fonte, Software, Associazione } from '@shared/schema';
-import { AREE, ATTIVITA_INDEX, FUNZIONI_INDEX, normalizza } from '@shared/taxonomy';
+import { normalizza } from '@shared/taxonomy';
+import { strutturaCorrente } from '@/lib/struttura';
 
 export function useFonti() {
   return useQuery<Fonte[]>({ queryKey: ['/api/fonti'] });
@@ -126,13 +127,13 @@ export function etichettaFonte(f?: Fonte): string {
 }
 
 export function nomeArea(areaId?: string | null) {
-  return AREE.find((a) => a.id === areaId)?.nome ?? areaId ?? '—';
+  return (areaId && strutturaCorrente().areeById[areaId]?.nome) || areaId || '—';
 }
 export function nomeFunzione(id?: string | null) {
-  return id ? FUNZIONI_INDEX[id]?.funzione.nome ?? id : '—';
+  return id ? strutturaCorrente().funzioniIndex[id]?.funzione.nome ?? id : '—';
 }
 export function nomeAttivita(id?: string | null) {
-  return id ? ATTIVITA_INDEX[id]?.attivita.nome ?? id : '—';
+  return id ? strutturaCorrente().attivitaIndex[id]?.attivita.nome ?? id : '—';
 }
 
 export function apriSoftware(s: Software): { tipo: 'url' | 'locale' | 'desktop' | 'nessuno'; valore?: string } {

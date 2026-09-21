@@ -15,7 +15,7 @@ import {
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ExternalLink, Folder, MonitorSmartphone, Link2, Unlink, Search, Plus } from 'lucide-react';
 import type { Associazione, Software } from '@shared/schema';
-import { AREE, AREE_BY_ID, FUNZIONI_INDEX } from '@shared/taxonomy';
+import { useStruttura } from '@/lib/struttura';
 import { etichettaFonte, nomeArea, nomeAttivita, nomeFunzione, urlNormalizzato, useRegistro } from '@/lib/dati';
 import { useToast } from '@/hooks/use-toast';
 
@@ -265,8 +265,9 @@ export function SelettoreNodo({
   valore: { areaId?: string; funzioneId?: string; attivitaId?: string };
   onChange: (v: { areaId?: string; funzioneId?: string; attivitaId?: string }) => void;
 }) {
-  const area = valore.areaId ? AREE_BY_ID[valore.areaId] : undefined;
-  const funzione = valore.funzioneId ? FUNZIONI_INDEX[valore.funzioneId]?.funzione : undefined;
+  const { aree, areeById, funzioniIndex } = useStruttura();
+  const area = valore.areaId ? areeById[valore.areaId] : undefined;
+  const funzione = valore.funzioneId ? funzioniIndex[valore.funzioneId]?.funzione : undefined;
 
   return (
     <div className="grid gap-2">
@@ -278,7 +279,7 @@ export function SelettoreNodo({
           <SelectValue placeholder="Area portuale" />
         </SelectTrigger>
         <SelectContent>
-          {AREE.map((a) => (
+          {aree.map((a) => (
             <SelectItem key={a.id} value={a.id}>
               {a.nome}
             </SelectItem>

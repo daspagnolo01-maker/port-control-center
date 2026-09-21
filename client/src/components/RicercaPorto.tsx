@@ -1,7 +1,8 @@
 import { useMemo, useRef, useState } from 'react';
 import { Input } from '@/components/ui/input';
 import { Search, X, MapPin, Layers, ListChecks, AppWindow } from 'lucide-react';
-import { AREE, ATTIVITA_INDEX, FUNZIONI_INDEX, normalizza } from '@shared/taxonomy';
+import { normalizza } from '@shared/taxonomy';
+import { useStruttura } from '@/lib/struttura';
 import type { Software } from '@shared/schema';
 import { useRegistro } from '@/lib/dati';
 
@@ -37,6 +38,7 @@ export default function RicercaPorto({
   onApriSoftware: (s: Software) => void;
 }) {
   const registro = useRegistro();
+  const { aree, areeById, funzioniIndex, attivitaIndex } = useStruttura();
   const [q, setQ] = useState('');
   const [aperto, setAperto] = useState(false);
   const chiusuraRef = useRef<number | null>(null);
@@ -46,7 +48,7 @@ export default function RicercaPorto({
     if (t.length < 2) return [];
     const out: Risultato[] = [];
 
-    for (const a of AREE) {
+    for (const a of aree) {
       if (normalizza(`${a.nome} ${a.codice} ${a.descrizione}`).includes(t)) {
         const n = (registro.perArea[a.id] ?? []).length;
         out.push({
@@ -57,8 +59,8 @@ export default function RicercaPorto({
         });
       }
     }
-    for (const id of Object.keys(FUNZIONI_INDEX)) {
-      const { area, funzione } = FUNZIONI_INDEX[id];
+    for (const id of Object.keys(funzioniIndex)) {
+      const { area, funzione } = funzioniIndex[id];
       if (normalizza(funzione.nome).includes(t)) {
         out.push({
           tipo: 'funzione',
@@ -69,8 +71,8 @@ export default function RicercaPorto({
         });
       }
     }
-    for (const id of Object.keys(ATTIVITA_INDEX)) {
-      const { area, funzione, attivita } = ATTIVITA_INDEX[id];
+    for (const id of Object.keys(attivitaIndex)) {
+      const { area, funzione, attivita } = attivitaIndex[id];
       if (normalizza(attivita.nome).includes(t)) {
         out.push({
           tipo: 'attivita',
@@ -91,7 +93,7 @@ export default function RicercaPorto({
           areaId: ass?.areaId,
           titolo: s.nome,
           contesto: ass
-            ? `associato a ${AREE.find((a) => a.id === ass.areaId)?.nome ?? ass.areaId}`
+            ? `associato a ${areeById[ass.areaId]?.nome ?? ass.areaId}`
             : 'non ancora associato a un punto del porto',
           record: s,
         });
@@ -100,7 +102,7 @@ export default function RicercaPorto({
 
     const ordine = { software: 0, attivita: 1, funzione: 2, area: 3 } as const;
     return out.sort((a, b) => ordine[a.tipo] - ordine[b.tipo]).slice(0, 12);
-  }, [q, registro.software, registro.assPerSoftware, registro.perArea, registro.perFunzione]);
+  }, [q, aree, areeById, funzioniIndex, attivitaIndex, registro.software, registro.assPerSoftware, registro.perArea, registro.perFunzione]);
 
   const scegli = (r: Risultato) => {
     if (r.tipo === 'area') onVaiArea(r.id);
