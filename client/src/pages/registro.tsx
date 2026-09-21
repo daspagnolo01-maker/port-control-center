@@ -8,7 +8,16 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Database, Search, ExternalLink, Download, AlertTriangle, Filter, X } from 'lucide-react';
 import type { Software } from '@shared/schema';
 import { useStruttura } from '@/lib/struttura';
-import { etichettaFonte, nomeArea, nomeAttivita, nomeFunzione, urlNormalizzato, useRegistro } from '@/lib/dati';
+import {
+  etichettaFonte,
+  nomeArea,
+  nomeAttivita,
+  nomeFunzione,
+  tipoRisorsa,
+  NOMI_TIPO_RISORSA,
+  urlNormalizzato,
+  useRegistro,
+} from '@/lib/dati';
 import SchedaSoftware from '@/components/SchedaSoftware';
 import { EtichettaAssociazione } from '@/components/associazioni';
 import { useToast } from '@/hooks/use-toast';
@@ -28,6 +37,7 @@ export default function PaginaRegistro() {
   const [fFonte, setFFonte] = useState(TUTTI);
   const [fFoglio, setFFoglio] = useState(TUTTI);
   const [fStato, setFStato] = useState(TUTTI);
+  const [fTipo, setFTipo] = useState(TUTTI);
   const [rapido, setRapido] = useState<null | 'senzaFunzione' | 'senzaUrl' | 'nonClassificati' | 'duplicati'>(
     null
   );
@@ -72,6 +82,7 @@ export default function PaginaRegistro() {
       if (fFonte !== TUTTI && String(s.fonteId) !== fFonte) return false;
       if (fFoglio !== TUTTI && s.foglio !== fFoglio) return false;
       if (fStato !== TUTTI && s.stato !== fStato) return false;
+      if (fTipo !== TUTTI && tipoRisorsa(s) !== fTipo) return false;
       if (rapido === 'senzaFunzione' && ass.some((a) => a.funzioneId)) return false;
       if (rapido === 'senzaUrl' && (s.url || s.percorsoLocale || s.appDesktop)) return false;
       if (rapido === 'nonClassificati' && ass.length) return false;
@@ -89,6 +100,7 @@ export default function PaginaRegistro() {
     fFonte,
     fFoglio,
     fStato,
+    fTipo,
     rapido,
     idsDuplicati,
   ]);
@@ -102,6 +114,7 @@ export default function PaginaRegistro() {
     setFFonte(TUTTI);
     setFFoglio(TUTTI);
     setFStato(TUTTI);
+    setFTipo(TUTTI);
     setRapido(null);
   };
 
@@ -111,6 +124,7 @@ export default function PaginaRegistro() {
         'Nome',
         'Descrizione',
         'Categoria',
+        'Tipo di risorsa',
         'Associazioni (area > funzione > attività)',
         'URL',
         'Percorso locale',
@@ -118,7 +132,7 @@ export default function PaginaRegistro() {
         'Stato',
         'Ruolo autorizzato',
         'Note',
-        'File Excel',
+        'Fonte di origine',
         'Foglio',
         'Riga di origine',
         'Possibile duplicato',
@@ -135,6 +149,7 @@ export default function PaginaRegistro() {
           s.nome,
           s.descrizione ?? '',
           s.categoria ?? '',
+          NOMI_TIPO_RISORSA[tipoRisorsa(s)],
           ass,
           s.url ?? '',
           s.percorsoLocale ?? '',
@@ -171,7 +186,7 @@ export default function PaginaRegistro() {
     <Shell>
       <Intestazione
         titolo="Registro software"
-        sottotitolo="Vista centrale di tutti i software rilevati negli Excel, con le loro fonti e associazioni."
+        sottotitolo="Vista centrale di tutti i software rilevati: Excel, documenti Word, siti web e applicazioni, con fonti e associazioni."
         icona={Database}
       >
         <Button size="sm" variant="outline" onClick={esporta} disabled={!elenco.length} data-testid="button-esporta">
@@ -183,7 +198,7 @@ export default function PaginaRegistro() {
       <div className="p-4 xl:p-5 space-y-5">
         {/* statistiche */}
         <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-2.5">
-          <Stat etichetta="File Excel" valore={registro.stats.nFonti} />
+          <Stat etichetta="Fonti" valore={registro.stats.nFonti} />
           <Stat etichetta="Fogli analizzati" valore={registro.stats.nFogli} />
           <Stat etichetta="Software" valore={registro.stats.nSoftware} accento />
           <Stat etichetta="Associazioni" valore={registro.stats.nAssociazioni} />
@@ -288,7 +303,7 @@ export default function PaginaRegistro() {
                 <FiltroSelect
                   valore={fFonte}
                   onChange={setFFonte}
-                  placeholder="File Excel di origine"
+                  placeholder="Fonte di origine"
                   opzioni={registro.fonti.map((f) => ({ value: String(f.id), label: etichettaFonte(f) }))}
                   testId="filtro-fonte"
                 />
@@ -298,6 +313,13 @@ export default function PaginaRegistro() {
                   placeholder="Foglio di origine"
                   opzioni={fogli.map((f) => ({ value: f, label: f }))}
                   testId="filtro-foglio"
+                />
+                <FiltroSelect
+                  valore={fTipo}
+                  onChange={setFTipo}
+                  placeholder="Tipo di risorsa"
+                  opzioni={Object.entries(NOMI_TIPO_RISORSA).map(([value, label]) => ({ value, label }))}
+                  testId="filtro-tipo"
                 />
                 <FiltroSelect
                   valore={fStato}
@@ -365,7 +387,8 @@ export default function PaginaRegistro() {
                             )}
                           </td>
                           <td className="px-3 py-2.5 whitespace-nowrap text-muted-foreground">
-                            {s.categoria ?? '—'}
+                            <div>{s.categoria ?? '—'}</div>
+                            <div className="etichetta">{NOMI_TIPO_RISORSA[tipoRisorsa(s)]}</div>
                           </td>
                           <td className="px-3 py-2.5">
                             {ass.length ? (

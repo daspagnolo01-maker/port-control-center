@@ -16,6 +16,7 @@ export const fonti = sqliteTable('fonti', {
   nRecord: integer('n_record').notNull().default(0),
   mappaturaColonne: text('mappatura_colonne').notNull().default('{}'), // JSON: campo interno -> colonna Excel
   versione: integer('versione').notNull().default(1),
+  tipo: text('tipo').notNull().default('excel'), // excel | docx | manuale
   importatoIl: text('importato_il').notNull(),
   aggiornatoIl: text('aggiornato_il'),
 });
@@ -40,6 +41,7 @@ export const software = sqliteTable('software', {
   stato: text('stato'),
   ruolo: text('ruolo'),
   icona: text('icona'),
+  tipo: text('tipo'), // web | desktop | documento | altro
   datiGrezzi: text('dati_grezzi').notNull().default('{}'), // JSON: riga Excel completa
   chiaveDuplicato: text('chiave_duplicato'), // nome normalizzato, per rilevare duplicati
   decisioneDuplicato: text('decisione_duplicato'), // separati | collegati | stesso
@@ -84,6 +86,7 @@ export const CAMPI_INTERNI = [
   { key: 'stato', label: 'Stato' },
   { key: 'ruolo', label: 'Ruolo autorizzato' },
   { key: 'icona', label: 'Icona' },
+  { key: 'tipo', label: 'Tipo di risorsa' },
 ] as const;
 
 export type CampoInterno = (typeof CAMPI_INTERNI)[number]['key'];
@@ -106,11 +109,14 @@ export const rigaImportSchema = z.object({
   stato: z.string().optional().nullable(),
   ruolo: z.string().optional().nullable(),
   icona: z.string().optional().nullable(),
+  tipo: z.string().optional().nullable(),
   datiGrezzi: z.record(z.string(), z.any()).optional(),
 });
 
 export const importSchema = z.object({
   nomeFile: z.string().min(1),
+  /** Origine dei record: cartella Excel/CSV oppure documento Word. */
+  tipoFonte: z.enum(['excel', 'docx']).default('excel'),
   etichetta: z.string().optional().nullable(),
   note: z.string().optional().nullable(),
   fogli: z.array(z.string()).default([]),
@@ -120,6 +126,39 @@ export const importSchema = z.object({
 });
 
 export type ImportPayload = z.infer<typeof importSchema>;
+
+/**
+ * Tipi di risorsa con cui un software può essere registrato.
+ * Un software non arriva necessariamente da un Excel: può essere un sito web,
+ * un eseguibile locale oppure un documento (per esempio .docx).
+ */
+export const TIPI_VOCE = [
+  { id: 'web', nome: 'Sito web o applicazione web', campo: 'url', etichettaCampo: 'Indirizzo web (URL)' },
+  { id: 'desktop', nome: 'Applicazione desktop (.exe)', campo: 'percorsoLocale', etichettaCampo: 'Percorso dell\'eseguibile' },
+  { id: 'documento', nome: 'Documento o file (.docx, .pdf, .xlsx)', campo: 'percorsoLocale', etichettaCampo: 'Percorso del file' },
+  { id: 'altro', nome: 'Altro / non specificato', campo: 'percorsoLocale', etichettaCampo: 'Riferimento' },
+] as const;
+
+export type TipoVoce = (typeof TIPI_VOCE)[number]['id'];
+
+/** Inserimento manuale di una singola voce nel registro software. */
+export const voceManualeSchema = z.object({
+  nome: z.string().min(1),
+  tipo: z.enum(['web', 'desktop', 'documento', 'altro']).default('altro'),
+  descrizione: z.string().optional().nullable(),
+  url: z.string().optional().nullable(),
+  percorsoLocale: z.string().optional().nullable(),
+  appDesktop: z.string().optional().nullable(),
+  categoria: z.string().optional().nullable(),
+  stato: z.string().optional().nullable(),
+  ruolo: z.string().optional().nullable(),
+  note: z.string().optional().nullable(),
+  areaId: z.string().optional().nullable(),
+  funzioneId: z.string().optional().nullable(),
+  attivitaId: z.string().optional().nullable(),
+});
+
+export type VoceManuale = z.infer<typeof voceManualeSchema>;
 export type RigaImport = z.infer<typeof rigaImportSchema>;
 
 // ---- Struttura del porto: area fisica -> funzione -> attività ----

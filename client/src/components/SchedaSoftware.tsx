@@ -9,7 +9,7 @@ import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { ExternalLink, Trash2, Plus, Save, Copy, Pencil, X, Check } from 'lucide-react';
 import type { Software } from '@shared/schema';
-import { etichettaFonte, urlNormalizzato, useRegistro } from '@/lib/dati';
+import { etichettaFonte, urlNormalizzato, tipoRisorsa, NOMI_TIPO_RISORSA, useRegistro } from '@/lib/dati';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import {
@@ -97,21 +97,28 @@ export default function SchedaSoftware({
         <SheetHeader>
           <SheetTitle className="font-display pr-6">{s.nome}</SheetTitle>
           <SheetDescription>
-            {etichettaFonte(fonteById[s.fonteId])}
+            {NOMI_TIPO_RISORSA[tipoRisorsa(s)]} · {etichettaFonte(fonteById[s.fonteId])}
             {s.foglio ? ` · foglio ${s.foglio}` : ''}
             {s.rigaOrigine ? ` · riga ${s.rigaOrigine}` : ''}
           </SheetDescription>
         </SheetHeader>
 
         <div className="mt-5 space-y-6">
-          {s.url && (
+          {s.url ? (
             <a href={urlNormalizzato(s.url)} target="_blank" rel="noreferrer">
               <Button className="w-full" data-testid="button-apri-software">
                 <ExternalLink className="h-4 w-4 mr-2" />
                 Apri lo strumento
               </Button>
             </a>
-          )}
+          ) : s.percorsoLocale || s.appDesktop ? (
+            <div className="rounded-md border border-border bg-muted/30 p-3 space-y-1">
+              <div className="etichetta text-muted-foreground">
+                {tipoRisorsa(s) === 'desktop' ? 'Applicazione da avviare sulla postazione' : 'File di riferimento'}
+              </div>
+              <div className="text-xs break-all">{s.percorsoLocale || s.appDesktop}</div>
+            </div>
+          ) : null}
 
           {/* Associazioni */}
           <section className="space-y-3">

@@ -143,6 +143,27 @@ export function apriSoftware(s: Software): { tipo: 'url' | 'locale' | 'desktop' 
   return { tipo: 'nessuno' };
 }
 
+/**
+ * Tipo di risorsa di un software: dichiarato nel campo `tipo`, altrimenti
+ * dedotto dai riferimenti disponibili (URL, eseguibile, documento).
+ */
+export function tipoRisorsa(s: Software): 'web' | 'desktop' | 'documento' | 'altro' {
+  if (s.tipo === 'web' || s.tipo === 'desktop' || s.tipo === 'documento' || s.tipo === 'altro') return s.tipo;
+  if (s.url) return 'web';
+  const rif = `${s.percorsoLocale ?? ''} ${s.appDesktop ?? ''}`.toLowerCase();
+  if (/\.(exe|msi|bat|cmd|lnk|app)\b/.test(rif)) return 'desktop';
+  if (/\.(docx?|pdf|xlsx?|pptx?|txt|odt)\b/.test(rif)) return 'documento';
+  if (rif.trim()) return 'desktop';
+  return 'altro';
+}
+
+export const NOMI_TIPO_RISORSA: Record<string, string> = {
+  web: 'Sito web',
+  desktop: 'Applicazione desktop',
+  documento: 'Documento',
+  altro: 'Non specificato',
+};
+
 export function urlNormalizzato(url: string): string {
   if (/^https?:\/\//i.test(url)) return url;
   if (/^[\w.-]+\.[a-z]{2,}/i.test(url)) return `https://${url}`;

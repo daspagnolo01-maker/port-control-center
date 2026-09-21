@@ -224,10 +224,10 @@ export default function PaginaAlbero() {
 
           <Select value={fonteFiltro} onValueChange={setFonteFiltro}>
             <SelectTrigger className="w-[230px]" data-testid="select-fonte-albero">
-              <SelectValue placeholder="File Excel: tutti" />
+              <SelectValue placeholder="Fonte: tutte" />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="__tutte__">File Excel: tutti</SelectItem>
+              <SelectItem value="__tutte__">Fonte: tutte</SelectItem>
               {registro.fonti.map((f) => (
                 <SelectItem key={f.id} value={String(f.id)}>
                   {etichettaFonte(f)}

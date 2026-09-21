@@ -7,7 +7,9 @@ import {
   areaInputSchema,
   funzioneInputSchema,
   attivitaInputSchema,
+  voceManualeSchema,
 } from '@shared/schema';
+import { leggiDocx } from './docx';
 import { z } from 'zod';
 
 export async function registerRoutes(httpServer: Server, app: Express): Promise<Server> {
@@ -134,7 +136,30 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
     res.json({ ok: true });
   });
 
+  // ---- Documenti Word: lettura di paragrafi e tabelle ----
+  app.post('/api/documento', (req, res) => {
+    const schema = z.object({ nomeFile: z.string().min(1), contenuto: z.string().min(1) });
+    const parsed = schema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errore: parsed.error.message });
+    try {
+      const doc = leggiDocx(parsed.data.contenuto);
+      res.json({ nomeFile: parsed.data.nomeFile, ...doc });
+    } catch (e: any) {
+      res.status(400).json({ errore: e?.message ?? 'Documento non leggibile' });
+    }
+  });
+
   // ---- Software ----
+  app.post('/api/software', (req, res) => {
+    const parsed = voceManualeSchema.safeParse(req.body);
+    if (!parsed.success) return res.status(400).json({ errore: parsed.error.message });
+    try {
+      res.json(storage.creaVoceManuale(parsed.data));
+    } catch (e: any) {
+      res.status(500).json({ errore: e?.message ?? 'Inserimento non riuscito' });
+    }
+  });
+
   app.get('/api/software', (_req, res) => {
     res.json(storage.listaSoftware());
   });
@@ -151,6 +176,7 @@ export async function registerRoutes(httpServer: Server, app: Express): Promise<
       stato: z.string().nullish(),
       ruolo: z.string().nullish(),
       icona: z.string().nullish(),
+      tipo: z.string().nullish(),
       decisioneDuplicato: z.string().nullish(),
       principale: z.number().optional(),
     });

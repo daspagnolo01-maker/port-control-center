@@ -7,6 +7,7 @@ import type {
   Associazione,
   InsertAssociazione,
   ImportPayload,
+  VoceManuale,
   AreaRecord,
   FunzioneRecord,
   AttivitaRecord,
@@ -111,6 +112,16 @@ CREATE INDEX IF NOT EXISTS idx_sw_fonte ON software(fonte_id);
 CREATE INDEX IF NOT EXISTS idx_ass_sw ON associazioni(software_id);
 CREATE INDEX IF NOT EXISTS idx_ass_area ON associazioni(area_id);
 `);
+
+// Migrazioni leggere: aggiunge le colonne introdotte dopo la prima versione.
+function colonnaSeManca(tabella: string, colonna: string, definizione: string) {
+  const colonne = sqlite.prepare(`PRAGMA table_info(${tabella})`).all() as { name: string }[];
+  if (!colonne.some((c) => c.name === colonna)) {
+    sqlite.exec(`ALTER TABLE ${tabella} ADD COLUMN ${colonna} ${definizione}`);
+  }
+}
+colonnaSeManca('fonti', 'tipo', "TEXT NOT NULL DEFAULT 'excel'");
+colonnaSeManca('software', 'tipo', 'TEXT');
 
 export const db = drizzle(sqlite);
 
@@ -499,6 +510,7 @@ export class Storage {
           nFogli: payload.fogli.length,
           nRecord: payload.righe.length,
           mappaturaColonne: JSON.stringify(payload.mappaturaColonne),
+          tipo: payload.tipoFonte,
           versione: precedente.versione + 1,
           aggiornatoIl: ora(),
         })
@@ -519,6 +531,7 @@ export class Storage {
         nFogli: payload.fogli.length,
         nRecord: payload.righe.length,
         mappaturaColonne: JSON.stringify(payload.mappaturaColonne),
+        tipo: payload.tipoFonte,
         versione: 1,
         importatoIl: ora(),
         aggiornatoIl: null,
@@ -554,6 +567,7 @@ export class Storage {
         stato: riga.stato ?? null,
         ruolo: riga.ruolo ?? null,
         icona: riga.icona ?? null,
+        tipo: riga.tipo ?? null,
         datiGrezzi: JSON.stringify(riga.datiGrezzi ?? {}),
         chiaveDuplicato: normalizza(riga.nome),
         decisioneDuplicato: null,
@@ -586,6 +600,96 @@ export class Storage {
   }
 
   /** Riconosce area/funzione/attività dai testi importati e crea l'associazione automatica. */
+  /**
+   * Fonte tecnica che raccoglie le voci inserite a mano (software .exe, URL,
+   * documenti). Così anche queste voci hanno una fonte tracciabile, come gli Excel.
+   */
+  private fonteManuale(): Fonte {
+    const esistente = db.select().from(fonti).all().find((f) => f.tipo === 'manuale');
+    if (esistente) return esistente;
+    return db
+      .insert(fonti)
+      .values({
+        nomeFile: 'Inserimenti manuali',
+        etichetta: 'Voci inserite manualmente',
+        note: null,
+        fogli: '[]',
+        nFogli: 0,
+        nRecord: 0,
+        mappaturaColonne: '{}',
+        tipo: 'manuale',
+        versione: 1,
+        importatoIl: ora(),
+        aggiornatoIl: null,
+      })
+      .returning()
+      .get();
+  }
+
+  /** Inserisce una singola voce (sito web, eseguibile, documento) nel registro. */
+  creaVoceManuale(dati: VoceManuale): { software: Software; associazione?: Associazione } {
+    const fonte = this.fonteManuale();
+    const creato = db
+      .insert(software)
+      .values({
+        fonteId: fonte.id,
+        foglio: null,
+        rigaOrigine: null,
+        codice: null,
+        nome: dati.nome,
+        descrizione: dati.descrizione ?? null,
+        areaTesto: null,
+        funzioneTesto: null,
+        attivitaTesto: null,
+        categoria: dati.categoria ?? null,
+        url: dati.url ?? null,
+        percorsoLocale: dati.percorsoLocale ?? null,
+        appDesktop: dati.appDesktop ?? null,
+        note: dati.note ?? null,
+        stato: dati.stato ?? null,
+        ruolo: dati.ruolo ?? null,
+        icona: null,
+        tipo: dati.tipo,
+        datiGrezzi: JSON.stringify({
+          origine: 'inserimento manuale',
+          tipo: dati.tipo,
+          url: dati.url ?? '',
+          percorsoLocale: dati.percorsoLocale ?? '',
+          appDesktop: dati.appDesktop ?? '',
+        }),
+        chiaveDuplicato: normalizza(dati.nome),
+        decisioneDuplicato: null,
+        principale: 0,
+      })
+      .returning()
+      .get();
+
+    db.update(fonti)
+      .set({
+        nRecord: db.select().from(software).where(eq(software.fonteId, fonte.id)).all().length,
+        aggiornatoIl: ora(),
+      })
+      .where(eq(fonti.id, fonte.id))
+      .run();
+
+    let associazione: Associazione | undefined;
+    if (dati.areaId) {
+      associazione = db
+        .insert(associazioni)
+        .values({
+          softwareId: creato.id,
+          areaId: dati.areaId,
+          funzioneId: dati.funzioneId ?? null,
+          attivitaId: dati.attivitaId ?? null,
+          origine: 'manuale',
+          note: null,
+        })
+        .returning()
+        .get();
+    }
+    return { software: creato, associazione };
+  }
+
   autoAssocia(s: Software): Associazione | undefined {
     const struttura = this.areeCorrenti();
     const area = suggerisciArea(struttura, s.areaTesto) ?? suggerisciArea(struttura, s.categoria);

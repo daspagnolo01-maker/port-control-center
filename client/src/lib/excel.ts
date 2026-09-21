@@ -66,6 +66,7 @@ const SINONIMI: Record<CampoInterno, string[]> = {
   stato: ['stato', 'status', 'attivo', 'operativo', 'in uso'],
   ruolo: ['ruolo', 'ruolo autorizzato', 'utenti', 'profilo', 'abilitazione', 'permessi'],
   icona: ['icona', 'icon', 'immagine', 'logo'],
+  tipo: ['tipo', 'tipologia', 'tipo risorsa', 'tipo software', 'natura'],
 };
 
 export type Mappatura = Partial<Record<CampoInterno, string>>;

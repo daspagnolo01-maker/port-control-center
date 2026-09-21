@@ -76,7 +76,7 @@ export default function Shell({ children }: { children: React.ReactNode }) {
           <Riga etichetta="Funzioni" valore={struttura.totaleFunzioni} />
           <Riga etichetta="Attività" valore={struttura.totaleAttivita} />
           <div className="h-px bg-sidebar-border my-1" />
-          <Riga etichetta="File Excel" valore={stats.nFonti} />
+          <Riga etichetta="Fonti" valore={stats.nFonti} />
           <Riga etichetta="Software" valore={stats.nSoftware} accento />
           <Riga etichetta="Associazioni" valore={stats.nAssociazioni} />
         </div>

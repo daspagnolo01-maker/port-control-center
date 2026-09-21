@@ -21,7 +21,16 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import {
   FileSpreadsheet,
+  FileText,
   Upload,
   Trash2,
   RefreshCw,
@@ -29,16 +38,22 @@ import {
   Check,
   Table2,
   Pencil,
+  Plus,
+  Globe,
+  MonitorDown,
   ArrowRight,
 } from 'lucide-react';
-import { CAMPI_INTERNI } from '@shared/schema';
+import { CAMPI_INTERNI, TIPI_VOCE, type TipoVoce } from '@shared/schema';
 import { leggiFile, mappaturaAutomatica, normalizzaRighe, type CartellaLetta, type Mappatura } from '@/lib/excel';
+import { leggiDocumento, tipoFile } from '@/lib/documenti';
+import { SelettoreNodo } from '@/components/associazioni';
 import { apiRequest, queryClient } from '@/lib/queryClient';
 import { useToast } from '@/hooks/use-toast';
 import { etichettaFonte, useRegistro } from '@/lib/dati';
 
 type Bozza = {
   key: string;
+  tipoFonte: 'excel' | 'docx';
   cartella: CartellaLetta;
   includi: Record<string, boolean>;
   mappature: Record<string, Mappatura>;
@@ -47,6 +62,52 @@ type Bozza = {
   autoAssocia: boolean;
   fonteTarget: string; // 'nuova' | id fonte esistente
 };
+
+/** Voce singola in inserimento: sito web, applicazione .exe, documento o altro. */
+type Voce = {
+  nome: string;
+  tipo: TipoVoce;
+  url: string;
+  percorsoLocale: string;
+  descrizione: string;
+  categoria: string;
+  stato: string;
+  note: string;
+  nodo: { areaId?: string; funzioneId?: string; attivitaId?: string };
+};
+
+function vocePredefinita(): Voce {
+  return {
+    nome: '',
+    tipo: 'web',
+    url: '',
+    percorsoLocale: '',
+    descrizione: '',
+    categoria: '',
+    stato: '',
+    note: '',
+    nodo: {},
+  };
+}
+
+const ICONA_TIPO: Record<string, typeof Globe> = {
+  web: Globe,
+  desktop: MonitorDown,
+  documento: FileText,
+  altro: Plus,
+};
+
+function iconaFonte(tipo: string) {
+  if (tipo === 'docx') return FileText;
+  if (tipo === 'manuale') return Plus;
+  return FileSpreadsheet;
+}
+
+function etichettaTipoFonte(tipo: string) {
+  if (tipo === 'docx') return 'Documento Word';
+  if (tipo === 'manuale') return 'Voci singole';
+  return 'Cartella Excel';
+}
 
 export default function PaginaGestione() {
   const registro = useRegistro();
@@ -57,6 +118,7 @@ export default function PaginaGestione() {
   const [lettura, setLettura] = useState(false);
   const [daEliminare, setDaEliminare] = useState<number | null>(null);
   const [modifica, setModifica] = useState<{ id: number; etichetta: string; note: string } | null>(null);
+  const [voce, setVoce] = useState<Voce | null>(null);
 
   async function onFile(files: FileList | null) {
     if (!files?.length) return;
@@ -66,7 +128,18 @@ export default function PaginaGestione() {
     try {
       const nuove: Bozza[] = [];
       for (const file of Array.from(files)) {
-        const cartella = await leggiFile(file);
+        const tipo = tipoFile(file);
+        if (tipo === 'eseguibile' || tipo === 'altro') {
+          // Un .exe o un singolo file non è un elenco: diventa una voce del registro.
+          setVoce({
+            ...vocePredefinita(),
+            tipo: tipo === 'eseguibile' ? 'desktop' : 'documento',
+            nome: file.name.replace(/\.[^.]+$/, ''),
+            percorsoLocale: file.name,
+          });
+          continue;
+        }
+        const cartella = tipo === 'docx' ? await leggiDocumento(file) : await leggiFile(file);
         const includi: Record<string, boolean> = {};
         const mappature: Record<string, Mappatura> = {};
         for (const f of cartella.fogli) {
@@ -75,6 +148,7 @@ export default function PaginaGestione() {
         }
         nuove.push({
           key: `${file.name}-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
+          tipoFonte: tipo === 'docx' ? 'docx' : 'excel',
           cartella,
           includi,
           mappature,
@@ -99,6 +173,7 @@ export default function PaginaGestione() {
       const righe = normalizzaRighe(fogli, b.mappature);
       const payload = {
         nomeFile: b.cartella.nomeFile,
+        tipoFonte: b.tipoFonte,
         etichetta: b.etichetta || null,
         note: b.note || null,
         fogli: fogli.filter((f) => f.includi).map((f) => f.nome),
@@ -130,7 +205,7 @@ export default function PaginaGestione() {
       queryClient.invalidateQueries({ queryKey: ['/api/software'] });
       queryClient.invalidateQueries({ queryKey: ['/api/associazioni'] });
       setDaEliminare(null);
-      toast({ title: 'File Excel rimosso dal sistema' });
+      toast({ title: 'Fonte rimossa dal sistema' });
     },
   });
 
@@ -142,6 +217,34 @@ export default function PaginaGestione() {
       setModifica(null);
       toast({ title: 'Scheda file aggiornata' });
     },
+  });
+
+  const salvaVoce = useMutation({
+    mutationFn: async (v: Voce) => {
+      const payload = {
+        nome: v.nome.trim(),
+        tipo: v.tipo,
+        descrizione: v.descrizione.trim() || null,
+        url: v.tipo === 'web' ? v.url.trim() || null : null,
+        percorsoLocale: v.tipo === 'web' ? null : v.percorsoLocale.trim() || null,
+        categoria: v.categoria.trim() || null,
+        stato: v.stato.trim() || null,
+        note: v.note.trim() || null,
+        areaId: v.nodo.areaId ?? null,
+        funzioneId: v.nodo.funzioneId ?? null,
+        attivitaId: v.nodo.attivitaId ?? null,
+      };
+      return (await apiRequest('POST', '/api/software', payload)).json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/fonti'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/software'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/associazioni'] });
+      setVoce(null);
+      toast({ title: 'Software aggiunto al registro' });
+    },
+    onError: (e: any) =>
+      toast({ title: 'Inserimento non riuscito', description: String(e?.message), variant: 'destructive' }),
   });
 
   const riassocia = useMutation({
@@ -156,13 +259,13 @@ export default function PaginaGestione() {
     <Shell>
       <Intestazione
         titolo="Gestione software"
-        sottotitolo="L'elenco dei software vive nei tuoi file Excel: aggiungili, aggiornali o rimuovili senza toccare l'applicazione."
+        sottotitolo="Registra i software da file Excel, documenti Word, indirizzi web o applicazioni .exe, senza toccare l'applicazione."
         icona={FileSpreadsheet}
       >
         <input
           ref={inputRef}
           type="file"
-          accept=".xlsx,.xls,.xlsm,.csv"
+          accept=".xlsx,.xls,.xlsm,.csv,.docx,.exe,.msi,.lnk,.bat,.cmd"
           multiple
           className="hidden"
           onChange={(e) => onFile(e.target.files)}
@@ -177,7 +280,16 @@ export default function PaginaGestione() {
           data-testid="button-aggiungi-elenco"
         >
           <Upload className="h-4 w-4 mr-1.5" />
-          {lettura ? 'Lettura in corso…' : 'Aggiungi elenco software'}
+          {lettura ? 'Lettura in corso…' : 'Aggiungi elenco da file'}
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setVoce(vocePredefinita())}
+          data-testid="button-voce-singola"
+        >
+          <Plus className="h-4 w-4 mr-1.5" />
+          Aggiungi singolo software
         </Button>
         <Button
           variant="outline"
@@ -208,9 +320,10 @@ export default function PaginaGestione() {
         {/* Elenco file importati */}
         <section className="space-y-3">
           <div className="flex items-baseline justify-between">
-            <h2 className="font-display text-base font-semibold">File Excel presenti nel sistema</h2>
+            <h2 className="font-display text-base font-semibold">Fonti presenti nel sistema</h2>
             <span className="etichetta text-muted-foreground">
-              {registro.stats.nFonti} file · {registro.stats.nFogli} fogli · {registro.stats.nSoftware} software
+              {registro.stats.nFonti} {registro.stats.nFonti === 1 ? 'fonte' : 'fonti'} ·{' '}
+              {registro.stats.nFogli} fogli · {registro.stats.nSoftware} software
             </span>
           </div>
 
@@ -229,7 +342,19 @@ export default function PaginaGestione() {
                 data-testid="button-primo-import"
               >
                 <Upload className="h-4 w-4 mr-1.5" />
-                Aggiungi elenco software
+                Aggiungi elenco da file
+              </Button>
+              <p className="text-xs text-muted-foreground">
+                Oltre agli Excel si possono importare elenchi da documenti Word (.docx) oppure inserire un
+                singolo software indicando un indirizzo web, un eseguibile .exe o un documento.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => setVoce(vocePredefinita())}
+                data-testid="button-primo-voce"
+              >
+                <Plus className="h-4 w-4 mr-1.5" />
+                Aggiungi singolo software
               </Button>
             </div>
           )}
@@ -244,6 +369,7 @@ export default function PaginaGestione() {
                   return [];
                 }
               })();
+              const IconaFonte = iconaFonte(f.tipo);
               return (
                 <div
                   key={f.id}
@@ -251,16 +377,19 @@ export default function PaginaGestione() {
                   data-testid={`card-fonte-${f.id}`}
                 >
                   <div className="flex items-start gap-3">
-                    <FileSpreadsheet className="h-5 w-5 text-primary mt-0.5 shrink-0" />
+                    <IconaFonte className="h-5 w-5 text-primary mt-0.5 shrink-0" />
                     <div className="min-w-0 flex-1">
                       <div className="font-medium text-sm truncate">{etichettaFonte(f)}</div>
-                      {f.etichetta?.trim() ? (
-                        <div className="etichetta text-muted-foreground truncate">{f.nomeFile}</div>
-                      ) : null}
+                      <div className="etichetta text-muted-foreground truncate">
+                        {etichettaTipoFonte(f.tipo)}
+                        {f.etichetta?.trim() ? ` · ${f.nomeFile}` : ''}
+                      </div>
                     </div>
-                    <Badge variant="outline" className="num shrink-0">
-                      v{f.versione}
-                    </Badge>
+                    {f.tipo !== 'manuale' && (
+                      <Badge variant="outline" className="num shrink-0">
+                        v{f.versione}
+                      </Badge>
+                    )}
                   </div>
 
                   <div className="grid grid-cols-3 gap-2">
@@ -292,6 +421,7 @@ export default function PaginaGestione() {
                     <Button
                       size="sm"
                       variant="outline"
+                      disabled={f.tipo === 'manuale'}
                       onClick={() => {
                         setTargetPendente(String(f.id));
                         inputRef.current?.click();
@@ -364,10 +494,10 @@ export default function PaginaGestione() {
       <AlertDialog open={daEliminare !== null} onOpenChange={(v) => !v && setDaEliminare(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Eliminare il file Excel dal sistema?</AlertDialogTitle>
+            <AlertDialogTitle>Eliminare questa fonte dal sistema?</AlertDialogTitle>
             <AlertDialogDescription>
-              Vengono rimossi i software importati da questo file e le relative associazioni. Gli altri file
-              restano invariati.
+              Vengono rimossi i software provenienti da questa fonte e le relative associazioni. Le altre fonti
+              restano invariate.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
@@ -381,7 +511,192 @@ export default function PaginaGestione() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <DialogVoce
+        voce={voce}
+        onChange={(v) => setVoce(v)}
+        onChiudi={() => setVoce(null)}
+        onSalva={() => voce && salvaVoce.mutate(voce)}
+        inCorso={salvaVoce.isPending}
+      />
     </Shell>
+  );
+}
+
+/** Inserimento di un singolo software: sito web, applicazione .exe o documento. */
+function DialogVoce({
+  voce,
+  onChange,
+  onChiudi,
+  onSalva,
+  inCorso,
+}: {
+  voce: Voce | null;
+  onChange: (v: Voce) => void;
+  onChiudi: () => void;
+  onSalva: () => void;
+  inCorso: boolean;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  if (!voce) return null;
+  const definizione = TIPI_VOCE.find((t) => t.id === voce.tipo) ?? TIPI_VOCE[3];
+  const Icona = ICONA_TIPO[voce.tipo] ?? Plus;
+  const valido = voce.nome.trim().length > 0;
+
+  return (
+    <Dialog open onOpenChange={(v) => !v && onChiudi()}>
+      <DialogContent className="max-w-xl max-h-[88vh] overflow-y-auto scroll-sottile">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2 text-base">
+            <Icona className="h-4 w-4 text-primary" />
+            Aggiungi un singolo software
+          </DialogTitle>
+          <DialogDescription>
+            Per i software che non arrivano da un elenco: un sito web, un eseguibile installato sulla
+            postazione oppure un documento di riferimento. La voce viene registrata come tutte le altre e
+            può essere associata subito a un'area, una funzione e un'attività.
+          </DialogDescription>
+        </DialogHeader>
+
+        <div className="space-y-4">
+          <div className="space-y-1.5">
+            <Label className="text-xs">Tipo di risorsa</Label>
+            <Select value={voce.tipo} onValueChange={(v) => onChange({ ...voce, tipo: v as TipoVoce })}>
+              <SelectTrigger data-testid="select-tipo-voce">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {TIPI_VOCE.map((t) => (
+                  <SelectItem key={t.id} value={t.id}>
+                    {t.nome}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Nome del software</Label>
+            <Input
+              value={voce.nome}
+              onChange={(e) => onChange({ ...voce, nome: e.target.value })}
+              placeholder="es. Portale prenotazione varchi"
+              data-testid="input-voce-nome"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">{definizione.etichettaCampo}</Label>
+            {voce.tipo === 'web' ? (
+              <Input
+                value={voce.url}
+                onChange={(e) => onChange({ ...voce, url: e.target.value })}
+                placeholder="https://"
+                data-testid="input-voce-url"
+              />
+            ) : (
+              <div className="flex gap-2">
+                <Input
+                  value={voce.percorsoLocale}
+                  onChange={(e) => onChange({ ...voce, percorsoLocale: e.target.value })}
+                  placeholder={
+                    voce.tipo === 'desktop' ? 'C:\\Programmi\\Applicazione\\app.exe' : 'C:\\Documenti\\manuale.docx'
+                  }
+                  data-testid="input-voce-percorso"
+                />
+                <input
+                  ref={fileRef}
+                  type="file"
+                  className="hidden"
+                  onChange={(e) => {
+                    const file = e.target.files?.[0];
+                    if (!file) return;
+                    onChange({
+                      ...voce,
+                      percorsoLocale: file.name,
+                      nome: voce.nome.trim() || file.name.replace(/\.[^.]+$/, ''),
+                    });
+                    e.target.value = '';
+                  }}
+                  data-testid="input-voce-file"
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => fileRef.current?.click()}
+                  data-testid="button-voce-scegli-file"
+                >
+                  Scegli file
+                </Button>
+              </div>
+            )}
+            <p className="etichetta text-muted-foreground">
+              {voce.tipo === 'web'
+                ? 'Indirizzo completo da aprire dalla mappa del porto.'
+                : 'Scegliendo un file viene proposto il suo nome: completare il percorso come appare sulla postazione.'}
+            </p>
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Descrizione</Label>
+            <Textarea
+              value={voce.descrizione}
+              onChange={(e) => onChange({ ...voce, descrizione: e.target.value })}
+              rows={2}
+              data-testid="input-voce-descrizione"
+            />
+          </div>
+
+          <div className="grid sm:grid-cols-2 gap-3">
+            <div className="space-y-1.5">
+              <Label className="text-xs">Categoria</Label>
+              <Input
+                value={voce.categoria}
+                onChange={(e) => onChange({ ...voce, categoria: e.target.value })}
+                placeholder="es. Dogana"
+                data-testid="input-voce-categoria"
+              />
+            </div>
+            <div className="space-y-1.5">
+              <Label className="text-xs">Stato</Label>
+              <Input
+                value={voce.stato}
+                onChange={(e) => onChange({ ...voce, stato: e.target.value })}
+                placeholder="es. in uso"
+                data-testid="input-voce-stato"
+              />
+            </div>
+          </div>
+
+          <Separator />
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Associazione (facoltativa)</Label>
+            <SelettoreNodo valore={voce.nodo} onChange={(nodo) => onChange({ ...voce, nodo })} />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label className="text-xs">Note</Label>
+            <Textarea
+              value={voce.note}
+              onChange={(e) => onChange({ ...voce, note: e.target.value })}
+              rows={2}
+              data-testid="input-voce-note"
+            />
+          </div>
+        </div>
+
+        <DialogFooter>
+          <Button variant="ghost" onClick={onChiudi}>
+            Annulla
+          </Button>
+          <Button onClick={onSalva} disabled={!valido || inCorso} data-testid="button-salva-voce">
+            <Check className="h-4 w-4 mr-1.5" />
+            {inCorso ? 'Salvataggio…' : 'Aggiungi al registro'}
+          </Button>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 }
 
@@ -420,7 +735,9 @@ function BozzaImport({
         <div className="min-w-0 flex-1">
           <h2 className="font-display font-semibold">{bozza.cartella.nomeFile}</h2>
           <p className="etichetta text-muted-foreground">
-            {bozza.cartella.fogli.length} fogli rilevati · {righe.length} righe pronte all'importazione
+            {bozza.tipoFonte === 'docx' ? 'Documento Word' : 'Cartella Excel'} ·{' '}
+            {bozza.cartella.fogli.length} {bozza.tipoFonte === 'docx' ? 'sezioni rilevate' : 'fogli rilevati'} ·{' '}
+            {righe.length} righe pronte all'importazione
           </p>
         </div>
         <Button size="icon" variant="ghost" className="h-8 w-8" onClick={onAnnulla} data-testid="button-annulla-import">
@@ -437,7 +754,7 @@ function BozzaImport({
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
-              <SelectItem value="nuova">Nuovo file nel registro</SelectItem>
+              <SelectItem value="nuova">Nuova fonte nel registro</SelectItem>
               {fonti.map((f) => (
                 <SelectItem key={f.id} value={String(f.id)}>
                   Aggiorna: {f.etichetta || f.nomeFile}
@@ -459,7 +776,7 @@ function BozzaImport({
 
       {/* fogli */}
       <div className="space-y-2">
-        <Label className="text-xs">Fogli da importare</Label>
+        <Label className="text-xs">{bozza.tipoFonte === 'docx' ? 'Sezioni da importare' : 'Fogli da importare'}</Label>
         <div className="flex flex-wrap gap-2">
           {bozza.cartella.fogli.map((f) => {
             const on = !!bozza.includi[f.nome];
@@ -500,7 +817,8 @@ function BozzaImport({
           <div className="space-y-3">
             <div className="flex items-baseline justify-between">
               <Label className="text-xs">
-                Normalizzazione colonne · foglio <span className="num">{foglio.nome}</span>
+                Normalizzazione colonne · {bozza.tipoFonte === 'docx' ? 'sezione' : 'foglio'}{' '}
+                <span className="num">{foglio.nome}</span>
               </Label>
               <span className="etichetta text-muted-foreground">
                 {foglio.colonne.length} colonne rilevate
