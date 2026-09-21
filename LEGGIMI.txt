@@ -1,0 +1,72 @@
+PORT CONTROL CENTER - versione pronta all'uso
+=============================================
+
+Questo archivio contiene l'applicazione GIA' COMPILATA. Non occorre installare
+dipendenze, non serve compilare nulla e non serve la password di amministratore.
+Serve soltanto il programma Node.js, in versione portatile.
+
+PREPARAZIONE (una volta sola)
+-----------------------------
+1. Aprire https://nodejs.org , sezione "Download", voce con tutte le opzioni.
+2. Scaricare l'archivio ZIP di Node.js 20 LTS per Windows a 64 bit
+   (file con nome tipo node-v20.x.x-win-x64.zip).
+   Su macOS o Linux scaricare il corrispondente archivio .tar.gz.
+3. Estrarre l'archivio in questa stessa cartella e rinominare la cartella
+   estratta in:  nodejs
+   Deve risultare il file:  nodejs\node.exe
+   (su macOS e Linux:  nodejs/bin/node)
+
+   In alternativa, se Node.js 20 e' gia' presente nel sistema o nel PATH
+   dell'utente, questo passaggio non serve.
+
+AVVIO
+-----
+Windows:       doppio clic su  avvia-windows.cmd
+macOS, Linux:  ./avvia-mac-linux.sh
+
+L'applicazione si apre nel browser all'indirizzo  http://localhost:5000
+Per chiuderla: CTRL+C nella finestra del terminale, oppure chiudere la finestra.
+
+Per usare un'altra porta: impostare la variabile d'ambiente PORT
+(esempio su Windows PowerShell:  $env:PORT=8080 ; .\avvia-windows.cmd )
+
+RISERVATEZZA
+------------
+L'applicazione ascolta solo sull'indirizzo locale 127.0.0.1: e' utilizzabile
+unicamente dal computer su cui e' in esecuzione e non viene esposta alla rete.
+Per consentire l'accesso da altre postazioni della rete locale occorre
+impostare HOST=0.0.0.0, operazione volontaria e non necessaria all'uso singolo.
+
+DATI E BACKUP
+-------------
+Tutti i dati inseriti (fonti, software, associazioni, struttura del porto)
+risiedono nel file  data.db  creato in questa cartella al primo avvio.
+Per il backup e' sufficiente chiudere l'applicazione e copiare quel file.
+Per azzerare tutto: chiudere l'applicazione e cancellare data.db.
+
+CONTENUTO DELL'ARCHIVIO
+-----------------------
+dist/                 applicazione compilata (server e interfaccia)
+node_modules/         componenti necessari all'avvio
+prebuilds/            componente del database precompilato per ogni sistema
+avvia-windows.cmd     avviatore per Windows
+avvia-mac-linux.sh    avviatore per macOS e Linux
+MANUALE.md            manuale completo in formato testo
+Manuale-Port-Control-Center.pdf   manuale completo impaginato
+LEGGIMI.txt           questo file
+
+PRIMO UTILIZZO
+--------------
+All'avvio la struttura del porto e' precaricata (aree, funzioni, attivita')
+mentre l'elenco dei software e' vuoto: e' corretto. I software si aggiungono
+dalla sezione "Gestione software" importando file Excel o CSV, documenti Word,
+oppure inserendo singoli indirizzi web e applicazioni.
+Il percorso consigliato e' descritto nel capitolo 4 del manuale.
+
+COMPONENTI INCLUSI PER IL DATABASE
+----------------------------------
+Windows x64: Node.js 20, 22, 23
+macOS arm64: Node.js 20
+Linux x64:   Node.js 20
+Con altre combinazioni l'avviatore segnala il problema e si puo' usare la
+versione con i sorgenti (npm install), descritta nel manuale.
